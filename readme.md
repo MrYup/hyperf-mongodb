@@ -4,6 +4,11 @@
 composer require yumufeng/hyperf-mongodb
 ```
 
+## 前言
+
+Fork 与 ```yumufeng/hyperf-mongodb```包，做了一些个性化修改
+感谢大佬的开源奉献，如若侵权，烦请告知下架
+
 ## config 
 在/config/autoload目录里面创建文件 mongodb.php
 添加以下内容

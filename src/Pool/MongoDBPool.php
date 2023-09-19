@@ -1,10 +1,10 @@
 <?php
 
-namespace Hyperf\Mongodb\Pool;
+namespace Mryup\HyperfMongodb\Pool;
 
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Contract\ConnectionInterface;
-use Hyperf\Mongodb\MongoDbConnection;
+use Mryup\HyperfMongodb\MongoDbConnection;
 use Hyperf\Pool\Pool;
 use Hyperf\Utils\Arr;
 use Psr\Container\ContainerInterface;

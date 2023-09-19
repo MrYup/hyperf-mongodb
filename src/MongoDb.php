@@ -1,11 +1,11 @@
 <?php
 
 
-namespace Hyperf\Mongodb;
+namespace Mryup\HyperfMongodb;
 
 
-use Hyperf\Mongodb\Exception\MongoDBException;
-use Hyperf\Mongodb\Pool\PoolFactory;
+use Mryup\HyperfMongodb\Exception\MongoDBException;
+use Mryup\HyperfMongodb\Pool\PoolFactory;
 use Hyperf\Utils\Context;
 
 /**
@@ -208,7 +208,6 @@ class MongoDb
 
 
     /**
-     * 聚合查询
      * @param string $namespace
      * @param array $filter
      * @return bool
@@ -223,6 +222,27 @@ class MongoDb
              */
             $collection = $this->getConnection();
             return $collection->command($namespace, $filter);
+        } catch (\Exception $e) {
+            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
+        }
+    }
+
+    /**
+     * 聚合查询
+     * @param string $namespace
+     * @param array $filter
+     * @return bool
+     * @throws MongoDBException
+     * @throws \MongoDB\Driver\Exception\Exception
+     */
+    public function selectWithGroupBy(string $namespace, array $filter = [])
+    {
+        try {
+            /**
+             * @var $collection MongoDBConnection
+             */
+            $collection = $this->getConnection();
+            return $collection->command($namespace, $filter,true);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }

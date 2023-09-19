@@ -1,7 +1,7 @@
 <?php
 
 
-namespace Hyperf\Mongodb\Pool;
+namespace Mryup\HyperfMongodb\Pool;
 
 
 use Hyperf\Di\Container;

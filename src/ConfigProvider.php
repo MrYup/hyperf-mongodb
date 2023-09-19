@@ -1,9 +1,7 @@
 <?php
 
 
-namespace Hyperf\Mongodb;
-
-use Hyperf\Mongodb\MongoDb;
+namespace Mryup\HyperfMongodb;
 
 class ConfigProvider
 {

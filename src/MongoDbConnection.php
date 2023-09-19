@@ -1,9 +1,9 @@
 <?php
 
-namespace Hyperf\Mongodb;
+namespace Mryup\HyperfMongodb;
 
 use Hyperf\Contract\ConnectionInterface;
-use Hyperf\Mongodb\Exception\MongoDBException;
+use Mryup\HyperfMongodb\Exception\MongoDBException;
 use Hyperf\Pool\Connection;
 use Hyperf\Pool\Exception\ConnectionException;
 use Hyperf\Pool\Pool;
@@ -401,15 +401,15 @@ class MongoDbConnection extends Connection implements ConnectionInterface
 
 
     /**
-     * 获取collection 中满足条件的条数
      *
      * @param string $namespace
      * @param array $filter
+     * @param bool $fetchAll
      * @return bool
      * @throws Exception
      * @throws MongoDBException
      */
-    public function command(string $namespace, array $filter = [])
+    public function command(string $namespace, array $filter = [],bool $fetchAll = false)
     {
         try {
             $command = new Command([
@@ -418,13 +418,15 @@ class MongoDbConnection extends Connection implements ConnectionInterface
                 'cursor' => new \stdClass()
             ]);
             $cursor = $this->connection->executeCommand($this->config['db'], $command);
-            $count = $cursor->toArray()[0];
+            $asArr = $cursor->toArray();
+
+            $ret = $fetchAll?$asArr:($asArr[0]??[]);
         } catch (\Exception $e) {
-            $count = false;
+            $ret = false;
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         } finally {
             $this->pool->release($this);
-            return $count;
+            return $ret;
         }
     }
 

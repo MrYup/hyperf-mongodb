@@ -1,28 +1,25 @@
 {
-  "name": "yumufeng/hyperf-mongodb",
-  "license": "Apache-2.0",
-  "authors": [
-    {
-      "name": "yumufeng",
-      "email": "admin@yumufeng.com"
-    }
-  ],
-  "require": {
-    "php": ">=7.2",
-    "psr/container": "^1.0",
-    "hyperf/pool": "^2.0",
-    "hyperf/utils": "^2.0"
-  },
-  "autoload": {
-    "classmap": [
+    "name": "mryup/hyperf-mongodb",
+    "description": "Open for hyperf mongodb, Fork of yumufeng/hyperf-mongodb,thanks Mr yumufeng",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "classmap": [
+        ],
+        "psr-4": {
+            "Mryup\\HyperfMongodb\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Bob",
+            "email": "stillshakalaka@gmail.com"
+        }
     ],
-    "psr-4": {
-      "Hyperf\\Mongodb\\": "src"
+    "require": {
+        "php": ">=7.2",
+        "psr/container": "^1.0",
+        "hyperf/pool": "^2.0",
+        "hyperf/utils": "^2.0"
     }
-  },
-  "extra": {
-    "hyperf": {
-      "config": "Hyperf\\Mongodb\\ConfigProvider"
-    }
-  }
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace Hyperf\Mongodb\Exception;
+namespace Mryup\HyperfMongodb\Exception;
 
 class MongoDBException extends \Exception
 {
