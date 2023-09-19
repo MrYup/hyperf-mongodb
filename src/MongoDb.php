@@ -52,6 +52,29 @@ class MongoDb
     }
 
     /**
+     * 返回满足filer的第一行
+     *
+     * @param string $namespace
+     * @param array $filter
+     * @param array $options
+     * @return array
+     * @throws MongoDBException
+     */
+    public function findOne(string $namespace, array $filter = [], array $options = []): array
+    {
+        try {
+            /**
+             * @var $collection MongoDBConnection
+             */
+            $collection = $this->getConnection();
+            $ret =  $collection->executeQueryAll($namespace, $filter, $options);
+            return $ret[0]??[];
+        } catch (\Exception $e) {
+            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
+        }
+    }
+
+    /**
      * 返回满足filer的分页数据
      *
      * @param string $namespace
