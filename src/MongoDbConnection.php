@@ -409,7 +409,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      * @throws Exception
      * @throws MongoDBException
      */
-    public function command(string $namespace, array $filter = [],bool $fetchAll = false)
+    public function selectWithGroupBy(string $namespace, array $filter = [], bool $fetchAll = false)
     {
         try {
             $command = new Command([
@@ -427,6 +427,22 @@ class MongoDbConnection extends Connection implements ConnectionInterface
         } finally {
             $this->pool->release($this);
             return $ret;
+        }
+    }
+
+    public function findandmodify(string $namespace,array $filters,array $update){
+        try {
+            $command = new Command([
+                'findandmodify' => $namespace,
+                'update' => $update,
+                'query' => $filters,
+                'new' => true,
+                'upsert' => true
+            ]);
+            $result =  $this->connection->executeCommand($this->config['db'], $command)->toArray();
+            return $result[0]??null;
+        } catch (\Throwable $e) {
+            return $this->catchMongoException($e);
         }
     }
 

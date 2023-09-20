@@ -101,7 +101,7 @@ $this->$mongoDbClient->updateRow('fans',$where,$updateData);// 更新数据满�
 
 ```php
 $where = ['account'=>'1112313423'];
-$all = true; // 为false只删除匹配的一条，true删除多条
+$all = true; // 为true只删除匹配的一条，true删除全部
 $this->$mongoDbClient->delete('fans',$where,$all);
 ```
 
@@ -110,6 +110,539 @@ $this->$mongoDbClient->delete('fans',$where,$all);
 ```php
 $filter = ['isGroup' => "0", 'wechat' => '15584044700'];
 $count = $this->$mongoDbClient->count('fans', $filter);
+```
+
+### Eloquent
+
+- 手动创建一个model，继承 `Mryup\HyperfMongodb\MongodbModel`，(这里做了JWT鉴权，可忽略)
+
+```php
+
+<?php
+
+namespace App\Model;
+
+use MongoDB\BSON\ObjectId;
+use Mryup\HyperfMongodb\MongodbModel;
+use Qbhy\HyperfAuth\Authenticatable;
+
+
+/**
+ * @property $_id
+ * @property integer $id
+ * @property string $username
+ * @property string $password_hash
+ * @property string $email
+ */
+class DashboardUser extends MongodbModel implements Authenticatable
+{
+    
+    public function getCollection()
+    {
+        return 'dashboard_user';
+    }
+
+    public static function retrieveById($key): ?Authenticatable
+    {
+        return self::first(['_id'=>new ObjectId($key)]);
+    }
+
+    public function getId()
+    {
+        return $this->_id;
+    }
+
+}
+
+```
+
+- 维护自定义id的自增性
+
+```php
+
+<?php
+
+namespace Mryup\HyperfMongodb;
+
+use Mryup\HyperfMongodb\Exception\IDIncreaseException;
+
+class AutoIdGenerator
+{
+    /**
+     * @var MongoDb
+     */
+    private $mongoDb;
+
+    /**
+     * 需要自增id的集合名
+     * @var
+     */
+    private $collection;
+
+    //保存系统全部表自增id的集合名称
+    const SYSTEM_ID_COLLECTION = 'systemIds';
+
+    public function __construct(MongoDb $mongoDb,$collection)
+    {
+        $this->mongoDb = $mongoDb;
+        $this->collection = $collection;
+
+    }
+
+
+    /**
+     * 利用findandmodify的原子性，每次+1最大id
+     * @return mixed
+     * @throws Exception\MongoDBException
+     * @throws IDIncreaseException
+     */
+    public function getId(){
+        $incrInfo =  $this->mongoDb->findandmodify(self::SYSTEM_ID_COLLECTION,['collection'=>$this->collection],['$inc'=>['maxId'=>1]]);
+        if (!isset($incrInfo->value->maxId)){
+            throw new IDIncreaseException("Fail to increase and get new id for collection {$this->collection} ");
+        }
+        return $incrInfo->value->maxId;
+    }
+
+}
+
+```
+
+- 维护其他所有集合的自增id的集合(systemIds)数据结构如下
+```json
+[
+  {
+    "_id": {
+      "$oid": "650b1540a793617afb325f9f"
+    },
+    "collection": "user",
+    "maxId": 9
+  },
+  {
+    "_id": {
+      "$oid": "650b1b43a793617afb3262c7"
+    },
+    "collection": "dashboard_user",
+    "maxId": 15
+  }
+]
+
+```
+
+### Eloquent Usage
+
+```php
+
+<?php
+
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
+namespace App\Controller;
+
+use App\Cor\CoroutinePropertyTrait;
+use App\Cor\MchPasswordAes;
+use App\Model\DashboardUser;
+use App\Model\User;
+use App\Olsq;
+use Carbon\Carbon;
+use Hyperf\Di\Annotation\Inject;
+use Mryup\HyperfMongodb\MongoDb;
+
+class MongoTestController extends AbstractController
+{
+    use CoroutinePropertyTrait;
+
+    use MchPasswordAes;
+
+    /**
+     * @Inject
+     * @var MongoDb
+     */
+    protected $mongoDbClient;
+
+    //insert
+    public function insert(){
+        $ids = [
+            10001,10002,10003
+        ];
+        $bankCodes = [
+            'BCA','BNI','PERMATA','BNC','MANDIRI','BRI'
+        ];
+        $channelIds = [
+            1,31,65,13,53,431,443
+        ];
+        $insert = [];
+        for ($i=1;$i<=50;$i++){
+            $insert[] = [
+                'c1' => '',
+                'c2' => null,
+                'c3' => false,
+                'c4' => new Olsq(),
+                'c5' => Carbon::now()->toDateTimeString(),
+                'c6' => [
+                    'aswqq' => 556646,
+                    'dqwqwww' => new Olsq(),
+                    'wdqewqwe'=> '879797979',
+                    'sqwqweqw' => false,
+                    'gieee' => null,
+                    'wqeqweqwr' => Carbon::now(),
+                    'fwwerwr' => '54876999',
+                    'twewrt' => 'nnnnnnnnnnnnnn1',
+                    'hrw' => randomStr(500),
+                ],
+                'c7' => randomStr(30),
+                'c8' => 999995449874984646464645464646,
+                'c9' => [
+                    [
+                        'eqwrrq' => 'saqwee',
+                        'geewe' => '7844466',
+                    ] ,
+                    [
+                        'eqwrrq' => 'saqwee',
+                        'geewe' => '7844466',
+                    ] ,
+                    [
+                        'eqwrrq' => 'saqwee',
+                        'geewe' => '7844466',
+                    ] ,
+                ],
+                'dat' => Carbon::now()->subSeconds(rand(1,9999999))->toDateTimeString(),
+                'mchId' => $ids[rand(0,count($ids)-1)],
+                'bankCode' => $bankCodes[rand(0,count($bankCodes)-1)],
+                'channelId' => $channelIds[rand(0,count($channelIds)-1)],
+                'amount' => 10,
+                'fee' => 5
+            ];
+        }
+
+        //单行 insert
+        $this->mongoDbClient->insert('test',$insert[0]);
+        //批量insert
+        $r = $this->mongoDbClient->insertAll('test',$insert);
+
+        return [
+            'rst' => $r,
+        ];
+    }
+
+
+    //条件查询1
+    public function select(){
+        $filters = [
+            //多级字段等值查询
+//            'c6' => ['twewrt'=>'111111111111sss']，
+//            'c6.twewrt' => '111111111111sss',
+
+            //多级字段in查询
+//            'c6.dqwqwww.nwq' => ['$in'=>['111222222222bb']],
+
+             //一级字段等值查询
+//            'dat' => ['$eq'=>'2023-09-17 04:28:22'],
+
+              //大于等于，小于等于查询
+//            'c6.wdqewqwe' => ['$gt'=>'879797979','$lte'=>'879797981'],
+
+            //或查询
+//            '$or' => [
+//                ['c7' => ['$eq'=>'kdWRuZHqdwRPUuse8HfCttdBHoWJKb'],'c6.wdqewqwe'=>['$gt'=>'879797980']],
+//                ['c8' => 66123],
+//            ],
+
+            //模糊查询
+//            'c6.fwwerwr' => ['$regex'=>'看i看'],
+//            'c6.fwwerwr' => ['$regex'=>'^fe464'],
+
+            //区间查询
+            'dat' => ['$gte'=>'2023-06-21 21:06:52','$lte'=>'2023-09-15 18:10:41'],
+
+        ];
+        $r = $this->mongoDbClient->fetchAll('test',$filters);
+
+        return [
+            'result' => $r,
+        ];
+    }
+
+
+    //分页查询
+    public function selectWithPaginated(){
+        $options = [
+            'sort' => [
+//                'dat' => 1,//升序
+                'dat' => -1,//降序
+                'c6.aswqq' => 1,
+            ],
+        ];
+        $filters = [];
+        $pageSize =  (int)$this->request->input('page_size',10);
+        $page = ((int)$this->request->input('page',1))-1;
+        $c = $this->mongoDbClient->count('test',$filters);
+        $totalPage = ceil($c/$pageSize);
+        $r = $this->mongoDbClient->fetchPagination('test',$pageSize,$page,$filters,$options);
+
+        return [
+            'count' => $c,
+            'pageSize' => $pageSize,
+            'page' => $page,
+            'totalPages'  => $totalPage,
+            'listVarType' => gettype($r),
+            'list' => $r,
+        ];
+    }
+
+    //聚合查询
+    public function selectsBySummary(){
+        $filters = [
+            'dat' => ['$gte'=>'2023-06-21 21:06:52','$lte'=>'2023-09-15 18:10:41'],
+        ];
+
+        $pipeline = [
+            [
+                //match 放在group前，与mysql的where用法一致
+                '$match' => $filters,
+            ],
+            [
+                '$group' => [
+
+                    //mysql group by
+                    '_id' => [
+                        'bankCode' => '$bankCode',
+                        'mchId' => '$mchId',
+                        'channelId' => '$channelId',
+                    ],
+
+                    //mysql 聚合字段 count(*) as totalOrders
+                    'totalOrders'=>[
+                        '$sum' => 1,
+                    ],
+                    //mysql 聚合字段sum(amount) as totalAmount
+                    'totalAmount' => [
+                        '$sum' => '$amount',
+                    ],
+                    //mysql 聚合字段avg avg(amount) as totalAmount
+                    'avgAmount' => [
+                        '$avg' => '$amount'
+                    ],
+                    'maxDat' => [
+                        '$max' => '$dat',
+                    ],
+                    'minDat' => [
+                        '$min' => '$dat'
+                    ],
+                ],
+            ],
+            [
+                '$sort' => [
+                    'totalOrders' => -1,
+                ],
+            ],
+            [
+                '$limit' => 1000,
+            ],
+            [
+                //match 放在group后，与mysql的having用法一致
+                '$match' => [
+                    'totalOrders' => [
+                        '$gte' => 2,
+                    ],
+                ],
+            ],
+
+        ];
+
+        $r = $this->mongoDbClient->selectWithGroupBy('test',$pipeline);
+
+        $toMysql = "SELECT bankCode,
+                        mchId,
+                        channelId,
+                        count(*) as totalOrders,
+                        sum(amount) as totalAmount,
+                        avg(avgAmount) as avgAmount,
+                        max(dat) as maxDat,
+                        min(dat) as minDat
+                    FROM XXX
+                    WHERE `bat` between '2023-06-21 21:06:52' and '2023-09-15 18:10:41'
+                    GROUP BY bankCode,mchId,channelId 
+                    having totalOrders>=2
+                    order by totalOrders desc 
+                    LIMIT 1000
+        ";
+
+        return [
+            'result' => $r,
+        ];
+    }
+
+    public function selectWithGroupConcat(){
+        $filters = [
+            'dat' => ['$gte'=>'2023-06-21 21:06:52','$lte'=>'2023-09-15 18:10:41'],
+        ];
+
+        $pipelines  = [
+            [
+                '$match' => $filters,
+            ],
+            [
+                //mysql select group_contact(bankCode) as bankCodes group by mchId
+                '$group' =>[
+                    '_id' => '$mchId',
+                    'bankCodes' => [
+                        '$push' => '$bankCode'
+                    ],
+                ],
+            ],
+        ];
+
+        $r = $this->mongoDbClient->selectWithGroupBy('test',$pipelines);
+
+
+        $toSql = "SELECT mchId group_concat(bankCode) as bankCodes 
+                    FROM XXX 
+                    WHERE `bat` between '2023-06-21 21:06:52' and '2023-09-15 18:10:41'
+                    GROUP BY mchId 
+                    ";
+        return [
+            'result' => $r,
+        ];
+    }
+
+
+    //创建并落地一个Eloquent
+    public function modelCreate(){
+        $user = DashboardUser::create([
+            'username'=>'Bob',
+            'ewqw' => Carbon::now(),
+            'fewer' => collect(['rqwe'=>'dfww','dfewg','dwq','rewq' => new Olsq()]),
+            'grww' => new Olsq(),
+            'fewqw' => 4588455,
+            'fetfg' => ['fw'=>788,'qwewqe'=>8865,'sdw'=>['sdfeww','ewww']]
+        ]);
+        return [
+            'r' => $user,
+        ];
+    }
+
+    //查找第一个Eloquent
+    public function modelFindOne(){
+        $user = User::first(['username'=>'Bob','qwe'=>'eqww','deedfd'=>'qwdda']);
+        return [
+            'r' => $user,
+        ];
+    }
+
+
+    //查找最后一个Eloquent
+    public function last(){
+        $user = DashboardUser::last([
+            'username'=>'Bob',
+        ]);
+        return [
+            'r' => $user,
+        ];
+    }
+    
+    //更新一个Eloquent
+    public function save(){
+        $user = DashboardUser::last([
+            'username'=>'Bob',
+        ]);
+        $user->email = "See@Composer.json";
+        $user->save();
+        return [
+            'r' => $user,
+        ];
+    }
+
+
+    //删除Eloquent
+    public function modelDelete(){
+        $bool = DashboardUser::first([
+            'username'=>'Bob',
+        ])->delete();
+        return [
+            'r' => $bool,
+        ];
+    }
+
+
+
+    //更新或写入一个Eloquent
+    public function modelupdateOrCreate(){
+        $user = DashboardUser::updateOrCreate([
+            'username'=>'Bob',
+        ],[
+            'ewqw' => Carbon::now(),
+            'Jqwker' => randomStr(9),
+            'c1' => Carbon::now()->toDateTimeString(),
+        ]);
+        return [
+            'r' => $user,
+        ];
+    }
+
+    //自定义id查询一个Eloquent
+    public function modelFindOneById(){
+        $user =  DashboardUser::first(['id'=>['$eq'=>(int)$this->request->input('id')]]);
+        return [
+            'r' => $user,
+        ];
+    }
+
+    //更新第一行
+    public function modelUpdate(){
+        $bool = DashboardUser::update([
+            'username'=>'Bob',
+        ],[
+            'fewqw' => 22222,
+            'ewqw' => 33333,
+        ]);
+        return [
+            'r' => $bool,
+        ];
+    }
+
+    //更新全部行
+    public function modelUpdateAll(){
+        $bool = DashboardUser::updateAll([
+            'username'=>'Bob',
+        ],[
+            'fewqw' => randomStr(12),
+            'ewqw' => 33333,
+        ]);
+        return [
+            'r' => $bool,
+        ];
+    }
+
+    //删除全部行
+    public function modelDeleteAll(){
+        $bool = DashboardUser::deleteAll([
+            'username'=>'Bob',
+        ]);
+        return [
+            'r' => $bool,
+        ];
+    }
+
+
+    public function debug(){
+        $methodDebug = $this->request->input("methodDebug");
+        if (empty($methodDebug) || !method_exists($this,$methodDebug)){
+            return "Debug method [$methodDebug] not exists";
+        }
+
+        return $this->$methodDebug();
+    }
+}
+
+
 ```
 
 

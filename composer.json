@@ -20,6 +20,7 @@
         "php": ">=7.2",
         "psr/container": "^1.0",
         "hyperf/pool": "^2.0",
-        "hyperf/utils": "^2.0"
+        "hyperf/utils": "^2.0",
+        "nesbot/carbon": "^2.0"
     }
 }

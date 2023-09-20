@@ -29,6 +29,11 @@ class MongoDb
         $this->factory = $factory;
     }
 
+    public function setPool($poolName){
+        $this->poolName = $poolName;
+        return $this;
+    }
+
     /**
      * 返回满足filer的全部数据
      *
@@ -67,6 +72,7 @@ class MongoDb
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
+            $options['limit'] = 1;
             $ret =  $collection->executeQueryAll($namespace, $filter, $options);
             return $ret[0]??[];
         } catch (\Exception $e) {
@@ -187,7 +193,7 @@ class MongoDb
     }
 
     /**
-     * 删除满足条件的数据，默认只删除匹配条件的第一条记录，如果要删除多条$limit=true
+     * 删除满足条件的数据，默认只删除匹配条件的全部行，若只删除第一行，limit设置为true
      *
      * @param string $namespace
      * @param array $filter
@@ -250,6 +256,18 @@ class MongoDb
         }
     }
 
+    public function findandmodify(string $namespace,array $filters,array $update){
+        try {
+            /**
+             * @var $collection MongoDBConnection
+             */
+            $collection = $this->getConnection();
+            return $collection->findandmodify($namespace, $filters,$update);
+        } catch (\Exception $e) {
+            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
+        }
+    }
+
     /**
      * 聚合查询
      * @param string $namespace
@@ -265,7 +283,7 @@ class MongoDb
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->command($namespace, $filter,true);
+            return $collection->selectWithGroupBy($namespace, $filter,true);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
