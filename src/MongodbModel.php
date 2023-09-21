@@ -67,12 +67,14 @@ abstract class MongodbModel
     /**
      * 查找第一行
      * @param array $filters
+     * @param array $options
      * @return static|null
      * @throws Exception\MongoDBException
      */
-    public static function first(array $filters = []){
+    public static function first(array $filters = [],array $options = []){
         $instance = (new static());
-        $row = $instance->mongo->findOne($instance->getCollection(),$filters,['sort'=>['_id'=>self::ASC]]);
+        $options['sort'] = ['_id'=>self::ASC];
+        $row = $instance->mongo->findOne($instance->getCollection(),$filters,$options);
         if (empty($row)){
             return null;
         }
@@ -85,13 +87,14 @@ abstract class MongodbModel
 
 
     /**
-     * 查找第一行，否则保存异常
+     * 查找第一行，否则抛出异常
      * @param array $filters
+     * @param array $options
      * @return MongodbModel
      * @throws Exception\MongoDBException
      */
-    public static function firstOrFail(array $filters = []){
-        $instance = self::first($filters);
+    public static function firstOrFail(array $filters = [],array $options = []){
+        $instance = self::first($filters,$options);
         if (!$instance){
             throw (new ModelNotFoundException())->setModel(static::class);
         }
@@ -102,12 +105,14 @@ abstract class MongodbModel
     /**
      * 查找最后一行
      * @param array $filters
+     * @param array $options
      * @return static|null
      * @throws Exception\MongoDBException
      */
-    public static function last(array $filters = []){
+    public static function last(array $filters = [],array $options = []){
         $instance = (new static());
-        $row = $instance->mongo->findOne($instance->getCollection(),$filters,['sort'=>['_id'=>self::DESC]]);
+        $options['sort'] = ['_id'=>self::DESC];
+        $row = $instance->mongo->findOne($instance->getCollection(),$filters,$options);
         if (empty($row)){
             return null;
         }
@@ -116,6 +121,24 @@ abstract class MongodbModel
         }
 
         return $instance;
+    }
+
+    /**
+     * 查询全部Eloquent
+     * @param array $filters
+     * @param array $options
+     * @return static[]
+     * @throws Exception\MongoDBException
+     */
+    public static function findAll(array $filters = [],array $options = []){
+        $instance = (new static());
+        $ret = [];
+        $rows = $instance->mongo->fetchAll($instance->getCollection(),$filters,$options);
+
+        foreach ($rows as $row){
+            $ret[] = self::makeByArray($row);
+        }
+        return $ret;
     }
 
 
