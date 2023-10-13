@@ -34,6 +34,10 @@ class MongoDb
         return $this;
     }
 
+    public function getPool(){
+        return $this->poolName;
+    }
+
     /**
      * 返回满足filer的全部数据
      *

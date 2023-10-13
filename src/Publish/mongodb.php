@@ -18,5 +18,9 @@ return [
             'heartbeat' => -1,
             'max_idle_time' => (float)env('MONGODB_MAX_IDLE_TIME', 60),
         ],
+        'options' => [
+            //维护数据库每张表的自增id集合名称
+            'id_collector' => env('MONGODB_ID_COLLECTOR'),
+        ],
     ],
 ];

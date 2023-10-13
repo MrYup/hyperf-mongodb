@@ -17,9 +17,6 @@ class AutoIdGenerator
      */
     private $collection;
 
-    //保存系统全部表自增id的集合名称
-    const SYSTEM_ID_COLLECTION = 'systemIds';
-
     public function __construct(MongoDb $mongoDb,$collection)
     {
         $this->mongoDb = $mongoDb;
@@ -35,7 +32,11 @@ class AutoIdGenerator
      * @throws IDIncreaseException
      */
     public function getId(){
-        $incrInfo =  $this->mongoDb->findandmodify(self::SYSTEM_ID_COLLECTION,['collection'=>$this->collection],['$inc'=>['maxId'=>1]]);
+        $poolName = $this->mongoDb->getPool();
+        //保存系统全部表自增id的集合名称
+        $systemIdCol =  config("mongodb.{$poolName}.options.id_collector",'systemIds');
+
+        $incrInfo =  $this->mongoDb->findandmodify($systemIdCol,['collection'=>$this->collection],['$inc'=>['maxId'=>1]]);
         if (!isset($incrInfo->value->maxId)){
             throw new IDIncreaseException("Fail to increase and get new id for collection {$this->collection} ");
         }
