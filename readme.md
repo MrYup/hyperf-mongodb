@@ -136,15 +136,16 @@ use Qbhy\HyperfAuth\Authenticatable;
  */
 class DashboardUser extends MongodbModel implements Authenticatable
 {
-    
+    protected $softDeleted = true;
+
     public function getCollection()
     {
-        return 'dashboard_user';
+        return 'test';
     }
 
     public static function retrieveById($key): ?Authenticatable
     {
-        return self::first(['_id'=>new ObjectId($key)]);
+        return self::firstOrFail(['_id'=>new ObjectId($key)]);
     }
 
     public function getId()
@@ -232,7 +233,6 @@ class AutoIdGenerator
 ### Eloquent Usage
 
 ```php
-
 <?php
 
 declare(strict_types=1);
@@ -364,13 +364,8 @@ class MongoTestController extends AbstractController
             'dat' => ['$gte'=>'2023-06-21 21:06:52','$lte'=>'2023-09-15 18:10:41'],
 
         ];
-        $r = $this->mongoDbClient->fetchAll('test',[],[
-            'projection' => [
-                'channelId' => 1,
-                'amount' => 1
-            ],
 
-        ]);
+        $r = $this->mongoDbClient->fetchAll('test',$filters,[]);
 
         return [
             'result' => $r,
@@ -525,11 +520,12 @@ class MongoTestController extends AbstractController
     public function modelCreate(){
         $user = DashboardUser::create([
             'username'=>'Bob',
-            'ewqw' => Carbon::now(),
-            'fewer' => collect(['rqwe'=>'dfww','dfewg','dwq','rewq' => new Olsq()]),
-            'grww' => new Olsq(),
             'fewqw' => 4588455,
-            'fetfg' => ['fw'=>788,'qwewqe'=>8865,'sdw'=>['sdfeww','ewww']]
+            'channel_id' => rand(1,5),
+            'title' => randomStr(10),
+            'position' => randomStr(10),
+            'addr' => randomStr(5),
+            'age_real' => rand(20,30)
         ]);
         return [
             'r' => $user,
@@ -548,7 +544,13 @@ class MongoTestController extends AbstractController
     }
 
 
-    //查找全部Eloquent
+    /**
+     * 查找全部Eloquent，注意的是mongodb的查询字段条件，是全等查询，即除了值数据类型也必须满足
+     * @return array
+     * @throws \Mryup\HyperfMongodb\Exception\MongoBuilderException
+     * @throws \Mryup\HyperfMongodb\Exception\MongoDBException
+     * @throws \Mryup\HyperfMongodb\Exception\MongoUpdateException
+     */
     public function modelAll(){
         $query = DashboardUser::query()
             ->where('username','Bob')
@@ -713,8 +715,6 @@ class MongoTestController extends AbstractController
         return $this->$methodDebug();
     }
 }
-
-
 
 ```
 
