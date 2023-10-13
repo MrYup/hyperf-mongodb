@@ -157,79 +157,6 @@ class DashboardUser extends MongodbModel implements Authenticatable
 
 ```
 
-- 维护自定义id的自增性
-
-```php
-
-<?php
-
-namespace Mryup\HyperfMongodb;
-
-use Mryup\HyperfMongodb\Exception\IDIncreaseException;
-
-class AutoIdGenerator
-{
-    /**
-     * @var MongoDb
-     */
-    private $mongoDb;
-
-    /**
-     * 需要自增id的集合名
-     * @var
-     */
-    private $collection;
-
-    //保存系统全部表自增id的集合名称
-    const SYSTEM_ID_COLLECTION = 'systemIds';
-
-    public function __construct(MongoDb $mongoDb,$collection)
-    {
-        $this->mongoDb = $mongoDb;
-        $this->collection = $collection;
-
-    }
-
-
-    /**
-     * 利用findandmodify的原子性，每次+1最大id
-     * @return mixed
-     * @throws Exception\MongoDBException
-     * @throws IDIncreaseException
-     */
-    public function getId(){
-        $incrInfo =  $this->mongoDb->findandmodify(self::SYSTEM_ID_COLLECTION,['collection'=>$this->collection],['$inc'=>['maxId'=>1]]);
-        if (!isset($incrInfo->value->maxId)){
-            throw new IDIncreaseException("Fail to increase and get new id for collection {$this->collection} ");
-        }
-        return $incrInfo->value->maxId;
-    }
-
-}
-
-```
-
-- 维护其他所有集合的自增id的集合(systemIds)数据结构如下
-```json
-[
-  {
-    "_id": {
-      "$oid": "650b1540a793617afb325f9f"
-    },
-    "collection": "user",
-    "maxId": 9
-  },
-  {
-    "_id": {
-      "$oid": "650b1b43a793617afb3262c7"
-    },
-    "collection": "dashboard_user",
-    "maxId": 15
-  }
-]
-
-```
-
 ### Eloquent Usage
 
 ```php
@@ -715,6 +642,80 @@ class MongoTestController extends AbstractController
         return $this->$methodDebug();
     }
 }
+
+```
+
+
+### Eloquent已经实现自增create(..)，代码如下
+
+```php
+
+<?php
+
+namespace Mryup\HyperfMongodb;
+
+use Mryup\HyperfMongodb\Exception\IDIncreaseException;
+
+class AutoIdGenerator
+{
+    /**
+     * @var MongoDb
+     */
+    private $mongoDb;
+
+    /**
+     * 需要自增id的集合名
+     * @var
+     */
+    private $collection;
+
+    //保存系统全部表自增id的集合名称
+    const SYSTEM_ID_COLLECTION = 'systemIds';
+
+    public function __construct(MongoDb $mongoDb,$collection)
+    {
+        $this->mongoDb = $mongoDb;
+        $this->collection = $collection;
+
+    }
+
+
+    /**
+     * 利用findandmodify的原子性，每次+1最大id
+     * @return mixed
+     * @throws Exception\MongoDBException
+     * @throws IDIncreaseException
+     */
+    public function getId(){
+        $incrInfo =  $this->mongoDb->findandmodify(self::SYSTEM_ID_COLLECTION,['collection'=>$this->collection],['$inc'=>['maxId'=>1]]);
+        if (!isset($incrInfo->value->maxId)){
+            throw new IDIncreaseException("Fail to increase and get new id for collection {$this->collection} ");
+        }
+        return $incrInfo->value->maxId;
+    }
+
+}
+
+```
+
+- 维护其他所有集合的自增id的集合(systemIds)数据结构如下
+```json
+[
+  {
+    "_id": {
+      "$oid": "650b1540a793617afb325f9f"
+    },
+    "collection": "user",
+    "maxId": 9
+  },
+  {
+    "_id": {
+      "$oid": "650b1b43a793617afb3262c7"
+    },
+    "collection": "dashboard_user",
+    "maxId": 15
+  }
+]
 
 ```
 
