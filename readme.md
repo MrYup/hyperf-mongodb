@@ -248,6 +248,7 @@ namespace App\Controller;
 
 use App\Cor\CoroutinePropertyTrait;
 use App\Cor\MchPasswordAes;
+use App\Logic\User\IUser;
 use App\Model\DashboardUser;
 use App\Model\User;
 use App\Olsq;
@@ -363,7 +364,13 @@ class MongoTestController extends AbstractController
             'dat' => ['$gte'=>'2023-06-21 21:06:52','$lte'=>'2023-09-15 18:10:41'],
 
         ];
-        $r = $this->mongoDbClient->fetchAll('test',$filters);
+        $r = $this->mongoDbClient->fetchAll('test',[],[
+            'projection' => [
+                'channelId' => 1,
+                'amount' => 1
+            ],
+
+        ]);
 
         return [
             'result' => $r,
@@ -531,18 +538,99 @@ class MongoTestController extends AbstractController
 
     //查找第一个Eloquent
     public function modelFindOne(){
-        $user = User::first(['username'=>'Bob','qwe'=>'eqww','deedfd'=>'qwdda']);
+        $user = DashboardUser::query()
+            ->where('username','Bob')
+            ->whereGt('create_time','2023-10-13 00:29:20',true)
+            ->first();
         return [
             'r' => $user,
         ];
     }
 
 
+    //查找全部Eloquent
+    public function modelAll(){
+        $query = DashboardUser::query()
+            ->where('username','Bob')
+        ;
+
+        $pageSize =  (int)$this->request->input('page_size',10);
+        $page = ((int)$this->request->input('page',1));
+        $offset = ($page - 1) * $pageSize;
+
+        $inChannelId = $this->request->input('inChannelId',[]);
+        $notAddr = $this->request->input('notAddr',[]);
+
+        $between = $this->request->input('between');
+        $notBetween = $this->request->input('notBetween');
+
+        $nullColumn = $this->request->input('nullColumn');
+        $notNullColumn = $this->request->input('notNullColumn');
+
+        $like = $this->request->input('like');
+        $notLike = $this->request->input('notLike');
+
+        if (!empty($inChannelId)){
+            foreach ($inChannelId as $k => $v){
+                $inChannelId[$k] = (int)$v;
+            }
+            $query->whereIn('channel_id',$inChannelId);
+        }
+
+        if (!empty($notAddr)){
+            $query->whereNotIn('addr',$notAddr);
+        }
+
+        if (!empty($between[0]) && !empty($between[1])){
+            $query->whereBetween('age_real',[(int)$between[0],(int)$between[1]]);
+        }
+
+        if (!empty($notBetween[0]) && !empty($notBetween[1])){
+            $query->whereNotBetween('create_time',[$notBetween[0],$notBetween[1]]);
+        }
+
+        if ($like){
+            $query->whereLike('title',$like);
+        }
+        if ($notLike){
+            $query->whereNotLike('position',$notLike);
+        }
+
+        if ($nullColumn){
+            $query->whereNull($nullColumn);
+        }
+        if ($notNullColumn){
+            $query->whereNotNull($notNullColumn);
+        }
+
+        $query->limit($pageSize)
+            ->offset($offset)
+            ->select(['id','name'])
+        ;
+        $users = $query->all();
+
+        if (isset($users[0])){
+            $beforeSaved = clone $users[0];
+            $users[0]->age = 18;
+            $users[0]->save();
+        }else{
+            $beforeSaved = null;
+        }
+
+
+        return [
+            'before' => $beforeSaved,
+            'all' => $users,
+        ];
+    }
+
+
     //查找最后一个Eloquent
     public function last(){
-        $user = DashboardUser::last([
-            'username'=>'Bob',
-        ]);
+        $user = DashboardUser::query()
+            ->where('username','Bob')
+            ->whereGt('create_time','2023-10-13 00:29:20',true)
+            ->last();
         return [
             'r' => $user,
         ];
@@ -550,11 +638,12 @@ class MongoTestController extends AbstractController
     
     //更新一个Eloquent
     public function save(){
-        $user = DashboardUser::last([
-            'username'=>'Bob',
-        ]);
-        $user->email = "See@Composer.json";
-        $user->save();
+        $user = User::query()
+            ->where('username','admin')
+            ->first();
+//        make(IUser::class)->changePassword($user,'Kj1u5wf#1dib#&fd');
+        make(IUser::class)->changePassword($user,'JHDI3FK5!DFDF7DFf');
+
         return [
             'r' => $user,
         ];
@@ -563,11 +652,15 @@ class MongoTestController extends AbstractController
 
     //删除Eloquent
     public function modelDelete(){
-        $bool = DashboardUser::first([
-            'username'=>'Bob',
-        ])->delete();
+        $user = DashboardUser::query()
+            ->where('username','Bob')
+            ->whereGt('create_time','2023-10-13 00:29:20')
+            ->first();
+        $asArr = clone $user;
+        $isDeleted = $user->delete();
         return [
-            'r' => $bool,
+            'r' => $isDeleted,
+            'user' => $asArr,
         ];
     }
 
@@ -576,7 +669,7 @@ class MongoTestController extends AbstractController
     //更新或写入一个Eloquent
     public function modelupdateOrCreate(){
         $user = DashboardUser::updateOrCreate([
-            'username'=>'Bob',
+            'username'=>'Bob2',
         ],[
             'ewqw' => Carbon::now(),
             'Jqwker' => randomStr(9),
@@ -584,27 +677,6 @@ class MongoTestController extends AbstractController
         ]);
         return [
             'r' => $user,
-        ];
-    }
-
-    //自定义id查询一个Eloquent
-    public function modelFindOneById(){
-        $user =  DashboardUser::first(['id'=>['$eq'=>(int)$this->request->input('id')]]);
-        return [
-            'r' => $user,
-        ];
-    }
-
-    //更新第一行
-    public function modelUpdate(){
-        $bool = DashboardUser::update([
-            'username'=>'Bob',
-        ],[
-            'fewqw' => 22222,
-            'ewqw' => 33333,
-        ]);
-        return [
-            'r' => $bool,
         ];
     }
 
@@ -641,6 +713,7 @@ class MongoTestController extends AbstractController
         return $this->$methodDebug();
     }
 }
+
 
 
 ```

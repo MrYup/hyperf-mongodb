@@ -2,26 +2,28 @@
 
 namespace Mryup\HyperfMongodb;
 
-use App\Model\BankCode;
 use Carbon\Carbon;
-use Hyperf\Contract\CastsAttributes;
 use Hyperf\Database\Model\ModelNotFoundException;
+use Hyperf\Utils\Traits\ForwardsCalls;
 use MongoDB\BSON\ObjectId;
 use Mryup\HyperfMongodb\Exception\MongoInsertException;
 use Mryup\HyperfMongodb\Exception\MongoUpdateException;
+use Hyperf\Di\Annotation\Inject;
 
 abstract class MongodbModel
 {
 
-    use IgnoreNotFoundProperty;
+    use IgnoreNotFoundProperty,ForwardsCalls;
 
     const CREATED_AT = 'create_time';
 
     const UPDATED_AT = 'update_time';
 
-    const DESC = -1;
+    //软删除
+    protected $softDeleted = false;
 
-    const ASC = 1;
+    //软删除字段名
+    protected $deletedAt = 'deleted_at';
 
     /**
      * 是否自动更新时间
@@ -49,96 +51,53 @@ abstract class MongodbModel
     protected $increase = true;
 
     /**
+     * @Inject
      * @var MongoDb
      */
     protected $mongo;
 
+    /**
+     * @var MongoBuilder
+     */
+    protected $builder;
+
     private $_id = null;
 
-    private function __construct()
+    public function __construct()
     {
-        $this->mongo = make(MongoDb::class)->setPool($this->connection);
+        $this->builder = new MongoBuilder();
     }
 
 
     abstract public function getCollection();
 
-
     /**
-     * 查找第一行
-     * @param array $filters
-     * @param array $options
-     * @return static|null
-     * @throws Exception\MongoDBException
+     * @return string
      */
-    public static function first(array $filters = [],array $options = []){
-        $instance = (new static());
-        $options['sort'] = ['_id'=>self::ASC];
-        $row = $instance->mongo->findOne($instance->getCollection(),$filters,$options);
-        if (empty($row)){
-            return null;
-        }
-        foreach ($row as $field => $value ){
-            $instance->$field = $value;
-        }
-
-        return $instance;
-    }
-
-
-    /**
-     * 查找第一行，否则抛出异常
-     * @param array $filters
-     * @param array $options
-     * @return MongodbModel
-     * @throws Exception\MongoDBException
-     */
-    public static function firstOrFail(array $filters = [],array $options = []){
-        $instance = self::first($filters,$options);
-        if (!$instance){
-            throw (new ModelNotFoundException())->setModel(static::class);
-        }
-        return $instance;
-    }
-
-
-    /**
-     * 查找最后一行
-     * @param array $filters
-     * @param array $options
-     * @return static|null
-     * @throws Exception\MongoDBException
-     */
-    public static function last(array $filters = [],array $options = []){
-        $instance = (new static());
-        $options['sort'] = ['_id'=>self::DESC];
-        $row = $instance->mongo->findOne($instance->getCollection(),$filters,$options);
-        if (empty($row)){
-            return null;
-        }
-        foreach ($row as $field => $value ){
-            $instance->$field = $value;
-        }
-
-        return $instance;
+    public function getConnection(){
+        return $this->connection;
     }
 
     /**
-     * 查询全部Eloquent
-     * @param array $filters
-     * @param array $options
-     * @return static[]
-     * @throws Exception\MongoDBException
+     * @return bool
      */
-    public static function findAll(array $filters = [],array $options = []){
-        $instance = (new static());
-        $ret = [];
-        $rows = $instance->mongo->fetchAll($instance->getCollection(),$filters,$options);
+    public function isTimestamp(){
+        return $this->timestamps;
+    }
 
-        foreach ($rows as $row){
-            $ret[] = self::makeByArray($row);
-        }
-        return $ret;
+    public function isSoftDeleted(){
+        return $this->softDeleted;
+    }
+
+    public function deletedAt(){
+        return $this->deletedAt;
+    }
+
+    /**
+     * @return MongoDb
+     */
+    public function getMongo(){
+        return $this->mongo;
     }
 
 
@@ -180,23 +139,42 @@ abstract class MongodbModel
 
     }
 
+
+
     /**
-     * 更新第一行
+     * 查找第一行，否则抛出异常
      * @param array $filters
-     * @param array $attributes
-     * @return bool
+     * @param array $select
+     * @return static
      * @throws Exception\MongoDBException
      */
-    public static function update(array $filters,array $attributes = []){
-        $instance = new static();
-        //更新时间
-        if ($instance->timestamps){
-            $attributes[self::CREATED_AT] = Carbon::now()->toDateTimeString();
+    public static function firstOrFail(array $filters = [],array $select = []){
+        $instance = static::query()->filters($filters)->select($select)->first();
+        if (!$instance){
+            throw (new ModelNotFoundException())->setModel(static::class);
         }
-        self::formatWrittenRow($attributes);
+        return $instance;
+    }
 
-        $instance->mongo->updateColumn($instance->getCollection(),$filters,$attributes);
-        return true;
+
+
+    /**
+     * @param array $filters
+     * @param array $attributes
+     * @return static
+     * @throws Exception\MongoDBException
+     */
+    public static function updateOrCreate(array $filters,array $attributes = []){
+        $instance = static::query()->filters($filters)->first();
+
+        if (!$instance){
+            return self::create(array_merge($filters,$attributes));
+        }else{
+            foreach ($attributes as $field => $value){
+                $instance->$field = $value;
+            }
+            return $instance->save();
+        }
     }
 
 
@@ -220,44 +198,76 @@ abstract class MongodbModel
     }
 
 
-    public static function deleteAll(array $filters){
+    /**
+     * @param array $filters
+     * @param bool $forceDeleted
+     * @return bool
+     * @throws Exception\MongoDBException
+     */
+    public static function deleteAll(array $filters,bool $forceDeleted = false){
         $instance = new static();
-        $instance->mongo->delete($instance->getCollection(),$filters);
+
+        if ($instance->softDeleted && !$forceDeleted){
+            //软删除
+            $attributes[$instance->deletedAt] = Carbon::now()->toDateTimeString();
+            self::updateAll($filters,$attributes);
+        }else{
+            //强制删除
+            $instance->mongo->delete($instance->getCollection(),$filters);
+        }
         return true;
     }
 
-
-    /**
-     * @param array $filters
-     * @param array $attributes
-     * @return static
-     * @throws Exception\MongoDBException
-     */
-    public static function updateOrCreate(array $filters,array $attributes = []){
-        $instance = self::first($filters);
-
-        if (!$instance){
-            return self::create(array_merge($filters,$attributes));
-        }else{
-            foreach ($attributes as $field => $value){
-                $instance->$field = $value;
-            }
-            return $instance->save();
-        }
-    }
 
     /**
      * 删除当前Eloquent
-     * @return bool
+     * @return bool $forceDeleted
      * @throws Exception\MongoDBException
      * @throws MongoUpdateException
      */
-    public function delete(){
+    public function delete(bool $forceDeleted = false){
         if (!$this->_id){
             throw new MongoUpdateException("Instance missing _id");
         }
-        $this->mongo->delete($this->getCollection(),['_id'=>$this->_id],true);
+        if ($this->softDeleted && !$forceDeleted){
+            //软删除
+            $this->{$this->deletedAt} = Carbon::now()->toDateTimeString();
+            $this->save();
+
+            foreach ($this->toArray() as $field => $value){
+                unset($this->$field);
+            }
+        }else{
+            //强制删除
+            $this->mongo->delete($this->getCollection(),['_id'=>$this->_id],true);
+        }
         return true;
+    }
+
+
+    /**
+     * @param array $attributes
+     * @return $this
+     * @throws Exception\MongoDBException
+     * @throws MongoUpdateException
+     */
+    public function update(array $attributes = []){
+        //更新时间
+        if ($this->timestamps){
+            $attributes[self::UPDATED_AT] = Carbon::now()->toDateTimeString();
+        }
+        self::formatWrittenRow($attributes);
+
+        foreach ($attributes as $field => $value){
+            $this->$field = $value;
+        }
+
+        return $this->save();
+    }
+
+
+    public static function query(){
+        return make(MongoEloquent::class,['model'=>new static()]);
     }
 
 
@@ -290,7 +300,7 @@ abstract class MongodbModel
     /**
      * 入库数据格式化
      */
-    protected static function formatWrittenRow(&$rows){
+    public static function formatWrittenRow(&$rows){
         foreach ($rows as $field => &$value){
             if ($value instanceof Carbon){
                 //日期类型字段
@@ -312,13 +322,4 @@ abstract class MongodbModel
     }
 
 
-    public function __set($name, $value)
-    {
-        $this->$name = $value;
-    }
-
-    public function __get($name)
-    {
-        return $this->$name??null;
-    }
 }
