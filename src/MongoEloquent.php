@@ -102,8 +102,7 @@ class MongoEloquent
 
         //mongo find() option
         $options = $this->builder->getOptions();
-        print_r($options);
-        var_dump($filters);
+
         $rows = $this->model->getMongo()->fetchAll($this->model->getCollection(),$filters,$options);
         if (empty($rows)){
             return [];

@@ -34,8 +34,8 @@ class AutoIdGenerator
     public function getId(){
         $poolName = $this->mongoDb->getPool();
         //保存系统全部表自增id的集合名称
-        $systemIdCol =  config("mongodb.{$poolName}.options.id_collector",'systemIds');
-
+        $systemIdCol =  config("mongodb.{$poolName}.options.id_collector");
+        $systemIdCol = $systemIdCol?:'systemIds';
         $incrInfo =  $this->mongoDb->findandmodify($systemIdCol,['collection'=>$this->collection],['$inc'=>['maxId'=>1]]);
         if (!isset($incrInfo->value->maxId)){
             throw new IDIncreaseException("Fail to increase and get new id for collection {$this->collection} ");
