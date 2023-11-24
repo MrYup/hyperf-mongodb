@@ -1,0 +1,40 @@
+db.admin_user_roles.aggregate(
+{$lookup:{
+  from:"user",
+  localField:"user_id",
+  foreignField:"id",
+  as:"relatedUser"
+}},
+{$lookup:{
+  from:"admin_roles",
+  localField:"role_id",
+  foreignField:"id",
+  as:"relatedRole"
+}},
+{$match:{
+  id:{"$gte":80,"$lte":83}}
+},
+{$project:{
+  role_id:1,
+  user_id:1,
+  "relatedUser.id":1,
+  "relatedUser.username":1,
+  "relatedRole.id":1,
+  "relatedRole.role_name":1,
+  }
+}
+)
+
+-- To sql
+SELECT
+	role_id,
+	user_id,
+	relatedUser.id as "relatedUser.id",
+	relatedUser.username as "relatedUser.username",
+	relatedRole.id as "relatedRole.id",
+	relatedRole.role_name as "relatedRole.role_name"
+FROM `admin_user_roles` as urole
+LEFT JOIN `user` as relatedUser ON user_id=relatedUser.id
+LEFT JOIN `admin_roles` as relatedRole on role_id=relatedRole.id
+WHERE urole.id BETWEEN 80 and 83
+;

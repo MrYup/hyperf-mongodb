@@ -177,6 +177,21 @@ abstract class MongodbModel
         }
     }
 
+    /**
+     * @param array $filters
+     * @param array $attributes
+     * @return static
+     * @throws Exception\MongoDBException
+     */
+    public static function firstOrCreate(array $filters,array $attributes = []){
+        $instance = static::query()->filters($filters)->first();
+
+        if (!$instance){
+            $instance = self::create(array_merge($filters,$attributes));
+        }
+
+        return $instance;
+    }
 
     /**
      * 更新所有行
