@@ -3,6 +3,9 @@
 namespace Mryup\HyperfMongodb;
 
 use Hyperf\Contract\ConnectionInterface;
+use Hyperf\Event\EventDispatcher;
+use Mryup\HyperfMongodb\Events\MongoReadEvent;
+use Mryup\HyperfMongodb\Events\MongoWriteEvent;
 use Mryup\HyperfMongodb\Exception\MongoDBException;
 use Hyperf\Pool\Connection;
 use Hyperf\Pool\Exception\ConnectionException;
@@ -18,6 +21,7 @@ use MongoDB\Driver\Manager;
 use MongoDB\Driver\Query;
 use MongoDB\Driver\WriteConcern;
 use Psr\Container\ContainerInterface;
+use Hyperf\Di\Annotation\Inject;
 
 class MongoDbConnection extends Connection implements ConnectionInterface
 {
@@ -25,6 +29,12 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      * @var Manager
      */
     protected $connection;
+
+    /**
+     * @Inject
+     * @var EventDispatcher
+     */
+    protected $eventDispatcher;
 
     /**
      * @var array
@@ -126,6 +136,8 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             $query = new Query($filter, $options);
             $cursor = $this->connection->executeQuery($this->config['db'] . '.' . $namespace, $query);
 
+            //触发查询事件
+            $this->eventDispatcher->dispatch(new MongoReadEvent($this->config['db'],$namespace,$filter,$options));
             foreach ($cursor as $document) {
                 $document = (array)$document;
                 $document['_id'] = (string)$document['_id'];
@@ -173,7 +185,8 @@ class MongoDbConnection extends Connection implements ConnectionInterface
         try {
             $query = new Query($filter, $options);
             $cursor = $this->connection->executeQuery($this->config['db'] . '.' . $namespace, $query);
-
+            //触发查询事件
+            $this->eventDispatcher->dispatch(new MongoReadEvent($this->config['db'],$namespace,$filter,$options));
             foreach ($cursor as $document) {
                 $document = (array)$document;
                 $document['_id'] = (string)$document['_id'];
@@ -214,6 +227,10 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             $insertId = (string)$bulk->insert($data);
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
             $this->connection->executeBulkWrite($this->config['db'] . '.' . $namespace, $bulk, $written);
+
+            //触发写入事件
+            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'INSERT',[],[],$data));
+
         } catch (\Exception $e) {
             $insertId = false;
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
@@ -233,18 +250,22 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      * ];
      * @param string $namespace
      * @param array $data
-     * @return bool|string
+     * @return bool|string[]
      * @throws MongoDBException
      */
     public function insertAll(string $namespace, array $data = [])
     {
         try {
+            $insertId = [];
             $bulk = new BulkWrite();
             foreach ($data as $items) {
                 $insertId[] = (string)$bulk->insert($items);
             }
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
             $this->connection->executeBulkWrite($this->config['db'] . '.' . $namespace, $bulk, $written);
+            //触发写入事件
+            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'INSERT',[],[],$data));
+
         } catch (\Exception $e) {
             $insertId = false;
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
@@ -275,16 +296,19 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
                 $filter['_id'] = new ObjectId($filter['_id']);
             }
-
+            $option = ['multi' => true, 'upsert' => false];
             $bulk = new BulkWrite;
             $bulk->update(
                 $filter,
                 ['$set' => $newObj],
-                ['multi' => true, 'upsert' => false]
+                $option
             );
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
             $result = $this->connection->executeBulkWrite($this->config['db'] . '.' . $namespace, $bulk, $written);
             $modifiedCount = $result->getModifiedCount();
+            //触发写入事件
+            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'UPDATE',$filter,$option,$newObj));
+
             $update = $modifiedCount == 0 ? false : true;
         } catch (\Exception $e) {
             $update = false;
@@ -317,15 +341,19 @@ class MongoDbConnection extends Connection implements ConnectionInterface
                 $filter['_id'] = new ObjectId($filter['_id']);
             }
 
+            $option = ['multi' => false, 'upsert' => false];
             $bulk = new BulkWrite;
             $bulk->update(
                 $filter,
                 ['$set' => $newObj],
-                ['multi' => false, 'upsert' => false]
+                $option,
             );
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
             $result = $this->connection->executeBulkWrite($this->config['db'] . '.' . $namespace, $bulk, $written);
             $modifiedCount = $result->getModifiedCount();
+            //触发写入事件
+            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'UPDATE',$filter,$option,$newObj));
+
             $update = $modifiedCount == 1 ? true : false;
         } catch (\Exception $e) {
             $update = false;
@@ -351,11 +379,14 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
                 $filter['_id'] = new ObjectId($filter['_id']);
             }
-
+            $option = ['limit' => $limit];
             $bulk = new BulkWrite;
-            $bulk->delete($filter, ['limit' => $limit]);
+            $bulk->delete($filter, $option);
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
             $this->connection->executeBulkWrite($this->config['db'] . '.' . $namespace, $bulk, $written);
+            //触发写入事件
+            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'DELETE',$filter,$option));
+
             $delete = true;
         } catch (\Exception $e) {
             $delete = false;
@@ -385,6 +416,8 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             }
             $command = new Command($commandParam);
             $cursor = $this->connection->executeCommand($this->config['db'], $command);
+            //触发查询事件
+            $this->eventDispatcher->dispatch(new MongoReadEvent($this->config['db'],$namespace,$filter,[]));
             $count = $cursor->toArray()[0]->n;
             return $count;
         } catch (\Exception $e) {
@@ -418,6 +451,8 @@ class MongoDbConnection extends Connection implements ConnectionInterface
                 'cursor' => new \stdClass()
             ]);
             $cursor = $this->connection->executeCommand($this->config['db'], $command);
+            //触发查询事件
+            $this->eventDispatcher->dispatch(new MongoReadEvent($this->config['db'],$namespace,$filter,[]));
             $asArr = $cursor->toArray();
 
             $ret = $fetchAll?$asArr:($asArr[0]??[]);
@@ -440,6 +475,9 @@ class MongoDbConnection extends Connection implements ConnectionInterface
                 'upsert' => true
             ]);
             $result =  $this->connection->executeCommand($this->config['db'], $command)->toArray();
+            //触发查询事件
+            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'UPDATE',$filters,[],$update));
+
             return $result[0]??null;
         } catch (\Throwable $e) {
             return $this->catchMongoException($e);
