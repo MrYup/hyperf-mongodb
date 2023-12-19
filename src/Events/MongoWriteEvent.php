@@ -14,8 +14,8 @@ class MongoWriteEvent
     public $filters = [];
     public $options = [];
     public $newData = [];
-
-    public function __construct($db,$collection,$commandTy,array $filters = [],array $options = [],array $newData = [])
+    public $processTime;
+    public function __construct($db,$collection,$commandTy,array $filters = [],array $options = [],array $newData = [],$processTime = null)
     {
         $this->db = $db;
         $this->collection = $collection;
@@ -23,6 +23,7 @@ class MongoWriteEvent
         $this->filters = $filters;
         $this->options = $options;
         $this->newData = $newData;
+        $this->processTime = $processTime;
 
     }
 }

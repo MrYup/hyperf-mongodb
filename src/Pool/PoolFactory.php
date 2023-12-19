@@ -16,7 +16,7 @@ class PoolFactory
     protected $container;
 
     /**
-     * @var Channel[]
+     * @var MongoDBPool[]
      */
     protected $pools = [];
 

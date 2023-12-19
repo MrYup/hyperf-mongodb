@@ -21,7 +21,6 @@ use MongoDB\Driver\Manager;
 use MongoDB\Driver\Query;
 use MongoDB\Driver\WriteConcern;
 use Psr\Container\ContainerInterface;
-use Hyperf\Di\Annotation\Inject;
 
 class MongoDbConnection extends Connection implements ConnectionInterface
 {
@@ -31,7 +30,6 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     protected $connection;
 
     /**
-     * @Inject
      * @var EventDispatcher
      */
     protected $eventDispatcher;
@@ -44,6 +42,8 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     public function __construct(ContainerInterface $container, Pool $pool, array $config)
     {
         parent::__construct($container, $pool);
+
+        $this->eventDispatcher = $container->get(EventDispatcher::class);
         $this->config = $config;
         $this->reconnect();
     }
@@ -111,7 +111,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      */
     public function close(): bool
     {
-        // TODO: Implement close() method.
+        unset($this->connection);
         return true;
     }
 
@@ -134,23 +134,23 @@ class MongoDbConnection extends Connection implements ConnectionInterface
         $result = [];
         try {
             $query = new Query($filter, $options);
+            $startTime = microtime(true);
             $cursor = $this->connection->executeQuery($this->config['db'] . '.' . $namespace, $query);
+            $endTime = microtime(true);
 
             //触发查询事件
-            $this->eventDispatcher->dispatch(new MongoReadEvent($this->config['db'],$namespace,$filter,$options));
+            $this->eventDispatcher->dispatch(new MongoReadEvent($this->config['db'],$namespace,$filter,$options,round($endTime - $startTime,4)));
             foreach ($cursor as $document) {
                 $document = (array)$document;
                 $document['_id'] = (string)$document['_id'];
                 $result[] = $document;
             }
-        } catch (\Exception $e) {
-            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
-        } catch (Exception $e) {
-            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
-        } finally {
             $this->pool->release($this);
-            return $result;
+        } catch (\Throwable $e) {
+            $this->pool->release($this);
+            throw $e;
         }
+        return $result;
     }
 
     /**
@@ -184,9 +184,12 @@ class MongoDbConnection extends Connection implements ConnectionInterface
 
         try {
             $query = new Query($filter, $options);
+            $startTime = microtime(true);
             $cursor = $this->connection->executeQuery($this->config['db'] . '.' . $namespace, $query);
+            $endTime = microtime(true);
+
             //触发查询事件
-            $this->eventDispatcher->dispatch(new MongoReadEvent($this->config['db'],$namespace,$filter,$options));
+            $this->eventDispatcher->dispatch(new MongoReadEvent($this->config['db'],$namespace,$filter,$options,round($endTime - $startTime,4)));
             foreach ($cursor as $document) {
                 $document = (array)$document;
                 $document['_id'] = (string)$document['_id'];
@@ -197,14 +200,11 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             $result['currentPage'] = $currentPage;
             $result['perPage'] = $limit;
             $result['list'] = $data;
-
-        } catch (\Exception $e) {
-            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
-        } catch (Exception $e) {
-            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
-        } finally {
             $this->pool->release($this);
             return $result;
+        } catch (\Throwable $e) {
+            $this->pool->release($this);
+            throw $e;
         }
     }
 
@@ -223,20 +223,20 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     public function insert(string $namespace, array $data = [])
     {
         try {
+            $startTime = microtime(true);
             $bulk = new BulkWrite();
             $insertId = (string)$bulk->insert($data);
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
             $this->connection->executeBulkWrite($this->config['db'] . '.' . $namespace, $bulk, $written);
+            $endTime = microtime(true);
 
             //触发写入事件
-            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'INSERT',[],[],$data));
-
-        } catch (\Exception $e) {
-            $insertId = false;
-            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
-        } finally {
+            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'INSERT',[],[],$data,round($endTime - $startTime,4)));
             $this->pool->release($this);
             return $insertId;
+        } catch (\Throwable $e) {
+            $this->pool->release($this);
+            throw $e;
         }
     }
 
@@ -256,6 +256,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     public function insertAll(string $namespace, array $data = [])
     {
         try {
+            $startTime = microtime(true);
             $insertId = [];
             $bulk = new BulkWrite();
             foreach ($data as $items) {
@@ -263,15 +264,15 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             }
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
             $this->connection->executeBulkWrite($this->config['db'] . '.' . $namespace, $bulk, $written);
-            //触发写入事件
-            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'INSERT',[],[],$data));
 
-        } catch (\Exception $e) {
-            $insertId = false;
-            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
-        } finally {
+            $endTime = microtime(true);
+            //触发写入事件
+            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'INSERT',[],[],$data,round($endTime - $startTime,4)));
             $this->pool->release($this);
             return $insertId;
+        } catch (\Throwable $e) {
+            $this->pool->release($this);
+            throw $e;
         }
     }
 
@@ -293,6 +294,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     public function updateRow(string $namespace, array $filter = [], array $newObj = []): bool
     {
         try {
+            $startTime = microtime(true);
             if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
                 $filter['_id'] = new ObjectId($filter['_id']);
             }
@@ -306,16 +308,15 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
             $result = $this->connection->executeBulkWrite($this->config['db'] . '.' . $namespace, $bulk, $written);
             $modifiedCount = $result->getModifiedCount();
-            //触发写入事件
-            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'UPDATE',$filter,$option,$newObj));
+            $endTime = microtime(true);
 
-            $update = $modifiedCount == 0 ? false : true;
-        } catch (\Exception $e) {
-            $update = false;
-            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
-        } finally {
+            //触发写入事件
+            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'UPDATE',$filter,$option,$newObj,round($endTime - $startTime,4)));
             $this->pool->release($this);
-            return $update;
+            return $modifiedCount == 0 ? false : true;
+        } catch (\Throwable $e) {
+            $this->pool->release($this);
+            throw $e;
         }
     }
 
@@ -337,6 +338,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     public function updateColumn(string $namespace, array $filter = [], array $newObj = []): bool
     {
         try {
+            $startTime = microtime(true);
             if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
                 $filter['_id'] = new ObjectId($filter['_id']);
             }
@@ -351,16 +353,14 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
             $result = $this->connection->executeBulkWrite($this->config['db'] . '.' . $namespace, $bulk, $written);
             $modifiedCount = $result->getModifiedCount();
+            $endTime = microtime(true);
             //触发写入事件
-            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'UPDATE',$filter,$option,$newObj));
-
-            $update = $modifiedCount == 1 ? true : false;
-        } catch (\Exception $e) {
-            $update = false;
-            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
-        } finally {
-            $this->release();
-            return $update;
+            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'UPDATE',$filter,$option,$newObj,round($endTime - $startTime,4)));
+            $this->pool->release($this);
+            return $modifiedCount == 1 ? true : false;
+        } catch (\Throwable $e) {
+            $this->pool->release($this);
+            throw $e;
         }
     }
 
@@ -376,6 +376,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     public function delete(string $namespace, array $filter = [], bool $limit = false): bool
     {
         try {
+            $startTime = microtime(true);
             if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
                 $filter['_id'] = new ObjectId($filter['_id']);
             }
@@ -384,16 +385,14 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             $bulk->delete($filter, $option);
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
             $this->connection->executeBulkWrite($this->config['db'] . '.' . $namespace, $bulk, $written);
+            $endTime = microtime(true);
             //触发写入事件
-            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'DELETE',$filter,$option));
-
-            $delete = true;
-        } catch (\Exception $e) {
-            $delete = false;
-            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
-        } finally {
+            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'DELETE',$filter,$option,[],round($endTime - $startTime,4)));
             $this->pool->release($this);
-            return $delete;
+            return true;
+        } catch (\Throwable $e) {
+            $this->pool->release($this);
+            throw $e;
         }
     }
 
@@ -408,6 +407,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     public function count(string $namespace, array $filter = [])
     {
         try {
+            $startTime = microtime(true);
             $commandParam = [
                 'count' => $namespace
             ];
@@ -416,52 +416,46 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             }
             $command = new Command($commandParam);
             $cursor = $this->connection->executeCommand($this->config['db'], $command);
+            $endTime = microtime(true);
             //触发查询事件
-            $this->eventDispatcher->dispatch(new MongoReadEvent($this->config['db'],$namespace,$filter,[]));
+            $this->eventDispatcher->dispatch(new MongoReadEvent($this->config['db'],$namespace,$filter,[],round($endTime - $startTime,4)));
             $count = $cursor->toArray()[0]->n;
-            return $count;
-        } catch (\Exception $e) {
-            $count = false;
-            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
-        } catch (Exception $e) {
-            $count = false;
-            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
-        } finally {
             $this->pool->release($this);
             return $count;
+        } catch (\Throwable $e) {
+            $this->pool->release($this);
+            throw $e;
         }
     }
 
 
     /**
-     *
      * @param string $namespace
      * @param array $filter
      * @param bool $fetchAll
-     * @return bool
+     * @return array|mixed
      * @throws Exception
-     * @throws MongoDBException
+     * @throws \Throwable
      */
     public function selectWithGroupBy(string $namespace, array $filter = [], bool $fetchAll = false)
     {
         try {
+            $startTime = microtime(true);
             $command = new Command([
                 'aggregate' => $namespace,
                 'pipeline' => $filter,
                 'cursor' => new \stdClass()
             ]);
             $cursor = $this->connection->executeCommand($this->config['db'], $command);
+            $endTime = microtime(true);
             //触发查询事件
-            $this->eventDispatcher->dispatch(new MongoReadEvent($this->config['db'],$namespace,$filter,[]));
+            $this->eventDispatcher->dispatch(new MongoReadEvent($this->config['db'],$namespace,$filter,[],round($endTime - $startTime,4)));
             $asArr = $cursor->toArray();
-
-            $ret = $fetchAll?$asArr:($asArr[0]??[]);
-        } catch (\Exception $e) {
-            $ret = false;
-            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
-        } finally {
             $this->pool->release($this);
-            return $ret;
+            return  $fetchAll?$asArr:($asArr[0]??[]);
+        } catch (\Throwable $e) {
+            $this->pool->release($this);
+            throw $e;
         }
     }
 
@@ -474,12 +468,15 @@ class MongoDbConnection extends Connection implements ConnectionInterface
                 'new' => true,
                 'upsert' => true
             ]);
+            $startTime = microtime(true);
             $result =  $this->connection->executeCommand($this->config['db'], $command)->toArray();
+            $endTime = microtime(true);
             //触发查询事件
-            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'UPDATE',$filters,[],$update));
-
+            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'UPDATE',$filters,[],$update,round($endTime - $startTime,4)));
+            $this->pool->release($this);
             return $result[0]??null;
         } catch (\Throwable $e) {
+            $this->pool->release($this);
             return $this->catchMongoException($e);
         }
     }

@@ -12,6 +12,7 @@ class MongoReadEvent
     public $collection;
     public $filters;
     public $options;
+    public $processTime;
 
     /**
      * @param $db
@@ -19,11 +20,12 @@ class MongoReadEvent
      * @param $filters
      * @param $options
      */
-    public function __construct($db,$collection,$filters,$options)
+    public function __construct($db,$collection,$filters,$options,$processTime)
     {
         $this->db = $db;
         $this->collection = $collection;
         $this->filters = $filters;
         $this->options = $options;
+        $this->processTime = $processTime;
     }
 }
