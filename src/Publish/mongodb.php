@@ -2,6 +2,7 @@
 
 return [
     'default' => [
+        'url' => env('MONGODB_URL',''),
         'username' => env('MONGODB_USERNAME', ''),
         'password' => env('MONGODB_PASSWORD', ''),
         'host' => env('MONGODB_HOST', '127.0.0.1'),

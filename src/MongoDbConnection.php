@@ -71,32 +71,38 @@ class MongoDbConnection extends Connection implements ConnectionInterface
              * http://php.net/manual/zh/mongodb-driver-manager.construct.php
              */
 
-            $username = $this->config['username'];
-            $password = $this->config['password'];
-            if (!empty($username) && !empty($password)) {
-                $uri = sprintf(
-                    'mongodb://%s:%s@%s:%d/%s',
-                    $username,
-                    $password,
-                    $this->config['host'],
-                    $this->config['port'],
-                    $this->config['db']
-                );
-            } else {
-                $uri = sprintf(
-                    'mongodb://%s:%d/%s',
-                    $this->config['host'],
-                    $this->config['port'],
-                    $this->config['db']
-                );
-            }
+            //优先使用自定义的url
+            $url = $this->config['url']??'';
             $urlOptions = [];
-            //数据集
-            $replica = isset($this->config['replica']) ? $this->config['replica'] : null;
-            if ($replica) {
-                $urlOptions['replicaSet'] = $replica;
+
+            if (!$url){
+                $username = $this->config['username'];
+                $password = $this->config['password'];
+                if (!empty($username) && !empty($password)) {
+                    $url = sprintf(
+                        'mongodb://%s:%s@%s:%d/%s',
+                        $username,
+                        $password,
+                        $this->config['host'],
+                        $this->config['port'],
+                        $this->config['db']
+                    );
+                } else {
+                    $url = sprintf(
+                        'mongodb://%s:%d/%s',
+                        $this->config['host'],
+                        $this->config['port'],
+                        $this->config['db']
+                    );
+                }
+                //数据集
+                $replica = $this->config['replica']?? null;
+                if ($replica) {
+                    $urlOptions['replicaSet'] = $replica;
+                }
             }
-            $this->connection = new Manager($uri, $urlOptions);
+
+            $this->connection = new Manager($url, $urlOptions);
         } catch (InvalidArgumentException $e) {
             throw MongoDBException::managerError('mongodb 连接参数错误:' . $e->getMessage());
         } catch (RuntimeException $e) {
