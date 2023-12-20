@@ -72,7 +72,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
              */
 
             //优先使用自定义的url
-            $url = $this->config['url'];
+            $url = $this->config['url']??'';
             $urlOptions = [];
 
             if (!$url){
