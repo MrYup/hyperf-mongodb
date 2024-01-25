@@ -108,16 +108,15 @@ class MongoEloquent
             return [];
         }
 
-        $ret = [];
-        foreach ($rows as $row){
+        foreach ($rows as $index =>  $row){
             $model = clone $this->model;
             foreach ($row as $field => $value ){
                 $model->$field = $value;
             }
-            $ret[] = $model;
+            $rows[$index] = $model;
         }
 
-        return $ret;
+        return $rows;
     }
 
     /**

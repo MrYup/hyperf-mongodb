@@ -280,7 +280,9 @@ abstract class MongodbModel
         return $this->save();
     }
 
-
+    /**
+     * @return MongoEloquent
+     */
     public static function query(){
         return make(MongoEloquent::class,['model'=>new static()]);
     }
