@@ -6,7 +6,7 @@ composer require mryup/hyperf-mongodb
 
 ## 前言
 
-Fork 与 ```yumufeng/hyperf-mongodb```包，做了一些个性化修改
+Fork 与 ```yumufeng/hyperf-mongodb```包，添加了Query Builder，Model Eloquent，以及做了一些个性化修改
 感谢大佬的开源奉献，如若侵权，烦请告知下架
 
 ## config 
