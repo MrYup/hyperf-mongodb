@@ -63,6 +63,12 @@ abstract class MongodbModel
 
     private $_id = null;
 
+    /**
+     * 当UPDATE/DELETE时，使用哪个字段作为唯一条件
+     * @var string
+     */
+    protected $writeId = '_id';
+
     public function __construct()
     {
         $this->builder = new MongoBuilder();
@@ -234,6 +240,18 @@ abstract class MongodbModel
     }
 
 
+    protected function writeByFilter(){
+        $ukName = $this->writeId;
+        $ukValue = $this->{$ukName};
+
+        if (!$ukValue){
+            throw new MongoUpdateException("Instance missing writeId");
+        }
+
+        return [$ukName=>$ukName==='_id'?new ObjectId($ukValue):$ukValue];
+    }
+
+
     /**
      * 删除当前Eloquent
      * @return bool $forceDeleted
@@ -254,7 +272,7 @@ abstract class MongodbModel
             }
         }else{
             //强制删除
-            $this->mongo->delete($this->getCollection(),['_id'=>$this->_id],true);
+            $this->mongo->delete($this->getCollection(),$this->writeByFilter(),true);
         }
         return true;
     }
@@ -295,9 +313,6 @@ abstract class MongodbModel
      * @throws MongoUpdateException
      */
     public function save(){
-        if (!$this->_id){
-            throw new MongoUpdateException("Instance missing _id");
-        }
         if ($this->timestamps){
             $ut = self::UPDATED_AT;
             $this->$ut = Carbon::now()->toDateTimeString();
@@ -306,7 +321,7 @@ abstract class MongodbModel
         $update = $this->toArray();
         self::formatWrittenRow($update);
 
-        $this->mongo->updateColumn($this->getCollection(),['_id'=>new ObjectId($this->_id)],$update);
+        $this->mongo->updateColumn($this->getCollection(),$this->writeByFilter(),$update);
 
         return $this;
     }
