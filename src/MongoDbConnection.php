@@ -128,12 +128,13 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      * @param string $namespace
      * @param array $filter
      * @param array $options
+     * @param bool $isIdAuto
      * @return array
      * @throws MongoDBException
      */
-    public function executeQueryAll(string $namespace, array $filter = [], array $options = [])
+    public function executeQueryAll(string $namespace, array $filter = [], array $options = [],bool $isIdAuto = true)
     {
-        if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
+        if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId) && $isIdAuto) {
             $filter['_id'] = new ObjectId($filter['_id']);
         }
         // 查询数据
@@ -167,12 +168,13 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      * @param int $currentPage
      * @param array $filter
      * @param array $options
+     * @param bool $isIdAuto
      * @return array
      * @throws MongoDBException
      */
-    public function execQueryPagination(string $namespace, int $limit = 10, int $currentPage = 0, array $filter = [], array $options = [])
+    public function execQueryPagination(string $namespace, int $limit = 10, int $currentPage = 0, array $filter = [], array $options = [],bool $isIdAuto = true)
     {
-        if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
+        if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId) && $isIdAuto) {
             $filter['_id'] = new ObjectId($filter['_id']);
         }
         // 查询数据
@@ -290,18 +292,18 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      *   ['$set' => ['y' => 3]],
      *   ['multi' => false, 'upsert' => false]
      * );
-     *
      * @param string $namespace
      * @param array $filter
      * @param array $newObj
+     * @param bool $isIdAuto
      * @return bool
-     * @throws MongoDBException
+     * @throws \Throwable
      */
-    public function updateRow(string $namespace, array $filter = [], array $newObj = []): bool
+    public function updateRow(string $namespace, array $filter = [], array $newObj = [],bool $isIdAuto = true): bool
     {
         try {
             $startTime = microtime(true);
-            if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
+            if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId) && $isIdAuto) {
                 $filter['_id'] = new ObjectId($filter['_id']);
             }
             $option = ['multi' => true, 'upsert' => false];
@@ -338,14 +340,15 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      * @param string $namespace
      * @param array $filter
      * @param array $newObj
+     * @param bool $isIdAuto
      * @return bool
      * @throws MongoDBException
      */
-    public function updateColumn(string $namespace, array $filter = [], array $newObj = []): bool
+    public function updateColumn(string $namespace, array $filter = [], array $newObj = [],bool $isIdAuto = true): bool
     {
         try {
             $startTime = microtime(true);
-            if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
+            if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId) && $isIdAuto) {
                 $filter['_id'] = new ObjectId($filter['_id']);
             }
 
@@ -372,18 +375,18 @@ class MongoDbConnection extends Connection implements ConnectionInterface
 
     /**
      * 删除数据
-     *
      * @param string $namespace
      * @param array $filter
+     * @param bool $isIdAuto
      * @param bool $limit
      * @return bool
-     * @throws MongoDBException
+     * @throws \Throwable
      */
-    public function delete(string $namespace, array $filter = [], bool $limit = false): bool
+    public function delete(string $namespace, array $filter = [],bool $isIdAuto = true, bool $limit = false): bool
     {
         try {
             $startTime = microtime(true);
-            if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
+            if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId) && $isIdAuto) {
                 $filter['_id'] = new ObjectId($filter['_id']);
             }
             $option = ['limit' => $limit];

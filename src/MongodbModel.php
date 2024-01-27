@@ -5,7 +5,6 @@ namespace Mryup\HyperfMongodb;
 use Carbon\Carbon;
 use Hyperf\Database\Model\ModelNotFoundException;
 use Hyperf\Utils\Traits\ForwardsCalls;
-use MongoDB\BSON\ObjectId;
 use Mryup\HyperfMongodb\Exception\MongoInsertException;
 use Mryup\HyperfMongodb\Exception\MongoUpdateException;
 use Hyperf\Di\Annotation\Inject;
@@ -39,16 +38,29 @@ abstract class MongodbModel
     protected $connection = 'default';
 
     /**
-     * 主键
+     * 自定义主键
      * @var string
      */
     protected $primaryKey = 'id';
 
     /**
-     * 主键自增
+     * 自定义主键自增
      * @var bool
      */
     protected $increase = true;
+
+
+    /**
+     * 数据库主键
+     * @var mixed
+     */
+    private $_id = null;
+
+    /**
+     * 数据库主键，是否是数据库自动生成
+     * @var bool
+     */
+    protected static $isIdAuto = true;
 
     /**
      * @Inject
@@ -61,13 +73,6 @@ abstract class MongodbModel
      */
     protected $builder;
 
-    private $_id = null;
-
-    /**
-     * 当UPDATE/DELETE时，使用哪个字段作为唯一条件
-     * @var string
-     */
-    protected $writeId = '_id';
 
     public function __construct()
     {
@@ -214,7 +219,7 @@ abstract class MongodbModel
         }
         self::formatWrittenRow($attributes);
 
-        $instance->mongo->updateRow($instance->getCollection(),$filters,$attributes);
+        $instance->mongo->updateRow($instance->getCollection(),$filters,$attributes,static::$isIdAuto);
         return true;
     }
 
@@ -234,21 +239,18 @@ abstract class MongodbModel
             self::updateAll($filters,$attributes);
         }else{
             //强制删除
-            $instance->mongo->delete($instance->getCollection(),$filters);
+            $instance->mongo->delete($instance->getCollection(),$filters,static::$isIdAuto);
         }
         return true;
     }
 
 
     protected function writeByFilter(){
-        $ukName = $this->writeId;
-        $ukValue = $this->{$ukName};
-
-        if (!$ukValue){
+        if (!$this->_id){
             throw new MongoUpdateException("Instance missing writeId");
         }
 
-        return [$ukName=>$ukName==='_id'?new ObjectId($ukValue):$ukValue];
+        return ['_id' => $this->_id];
     }
 
 
@@ -272,7 +274,7 @@ abstract class MongodbModel
             }
         }else{
             //强制删除
-            $this->mongo->delete($this->getCollection(),$this->writeByFilter(),true);
+            $this->mongo->delete($this->getCollection(),$this->writeByFilter(),static::$isIdAuto,true);
         }
         return true;
     }
@@ -321,9 +323,16 @@ abstract class MongodbModel
         $update = $this->toArray();
         self::formatWrittenRow($update);
 
-        $this->mongo->updateColumn($this->getCollection(),$this->writeByFilter(),$update);
+        $this->mongo->updateColumn($this->getCollection(),$this->writeByFilter(),$update,static::$isIdAuto);
 
         return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isAutoId(){
+        return static::$isIdAuto;
     }
 
 

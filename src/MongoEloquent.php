@@ -39,7 +39,7 @@ class MongoEloquent
      * @return MongodbModel|null
      * @throws Exception\MongoDBException
      */
-    public  function first(string $sortBy = 'id',bool $first = true){
+    public  function first(string $sortBy = '_id',bool $first = true){
 
         //排序
         if ($first){
@@ -61,7 +61,7 @@ class MongoEloquent
         $options = $this->builder->getOptions();
 
 
-        $row = $this->model->getMongo()->findOne($this->model->getCollection(),$filters,$options);
+        $row = $this->model->getMongo()->findOne($this->model->getCollection(),$filters,$options,$this->model->isAutoId());
         if (empty($row)){
             return null;
         }
@@ -79,7 +79,7 @@ class MongoEloquent
      * @return MongodbModel|null
      * @throws Exception\MongoDBException
      */
-    public  function last(string $sortBy = 'id'){
+    public  function last(string $sortBy = '_id'){
         return $this->first($sortBy,false);
     }
 
@@ -103,7 +103,7 @@ class MongoEloquent
         //mongo find() option
         $options = $this->builder->getOptions();
 
-        $rows = $this->model->getMongo()->fetchAll($this->model->getCollection(),$filters,$options);
+        $rows = $this->model->getMongo()->fetchAll($this->model->getCollection(),$filters,$options,$this->model->isAutoId());
         if (empty($rows)){
             return [];
         }
@@ -140,7 +140,7 @@ class MongoEloquent
         //mongo find() option
         $options = $this->builder->getOptions();
 
-        $rows = $this->model->getMongo()->fetchAll($this->model->getCollection(),$filters,$options);
+        $rows = $this->model->getMongo()->fetchAll($this->model->getCollection(),$filters,$options,$this->model->isAutoId());
         if (empty($rows)){
             return [];
         }
