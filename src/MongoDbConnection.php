@@ -416,7 +416,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             if (is_array($_id)){
                 foreach ($_id as $op => $idFilterValue){
                     if (is_array($idFilterValue)){
-                        $_id[$op] = formatFilters($idFilterValue,$isIdAuto);
+                        $_id[$op] = $this->formatFilters($idFilterValue,$isIdAuto);
                     }else{
                         $_id[$op] = new ObjectId($idFilterValue);
                     }
