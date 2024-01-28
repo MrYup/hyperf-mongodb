@@ -204,7 +204,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
                 $data[] = $document;
             }
 
-            $result['totalCount'] = $this->count($namespace, $filter);
+            $result['totalCount'] = $this->count($namespace, $filter,$isIdAuto);
             $result['currentPage'] = $currentPage;
             $result['perPage'] = $limit;
             $result['list'] = $data;
@@ -437,10 +437,13 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      * @return bool
      * @throws MongoDBException
      */
-    public function count(string $namespace, array $filter = [])
+    public function count(string $namespace, array $filter = [],bool $isIdAuto = true)
     {
         try {
             $startTime = microtime(true);
+            if (isset($filter['_id'])){
+                $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
+            }
             $commandParam = [
                 'count' => $namespace
             ];
@@ -470,9 +473,12 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      * @throws Exception
      * @throws \Throwable
      */
-    public function selectWithGroupBy(string $namespace, array $filter = [], bool $fetchAll = false)
+    public function selectWithGroupBy(string $namespace, array $filter = [], bool $fetchAll = false,bool $isIdAuto = true)
     {
         try {
+            if (isset($filter['_id'])){
+                $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
+            }
             $startTime = microtime(true);
             $command = new Command([
                 'aggregate' => $namespace,
@@ -492,12 +498,15 @@ class MongoDbConnection extends Connection implements ConnectionInterface
         }
     }
 
-    public function findandmodify(string $namespace,array $filters,array $update){
+    public function findandmodify(string $namespace,array $filter,array $update,bool $isIdAuto = true){
         try {
+            if (isset($filter['_id'])){
+                $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
+            }
             $command = new Command([
                 'findandmodify' => $namespace,
                 'update' => $update,
-                'query' => $filters,
+                'query' => $filter,
                 'new' => true,
                 'upsert' => true
             ]);
@@ -505,7 +514,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             $result =  $this->connection->executeCommand($this->config['db'], $command)->toArray();
             $endTime = microtime(true);
             //触发查询事件
-            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'UPDATE',$filters,[],$update,round($endTime - $startTime,4)));
+            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'UPDATE',$filter,[],$update,round($endTime - $startTime,4)));
             $this->pool->release($this);
             return $result[0]??null;
         } catch (\Throwable $e) {

@@ -231,14 +231,14 @@ class MongoDb
      * @return bool
      * @throws MongoDBException
      */
-    public function count(string $namespace, array $filter = [])
+    public function count(string $namespace, array $filter = [],bool $isIdAuto = true)
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->count($namespace, $filter);
+            return $collection->count($namespace, $filter,$isIdAuto);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -265,13 +265,13 @@ class MongoDb
         }
     }
 
-    public function findandmodify(string $namespace,array $filters,array $update){
+    public function findandmodify(string $namespace,array $filters,array $update,bool $isIdAuto = true){
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->findandmodify($namespace, $filters,$update);
+            return $collection->findandmodify($namespace, $filters,$update,$isIdAuto);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -285,14 +285,14 @@ class MongoDb
      * @throws MongoDBException
      * @throws \MongoDB\Driver\Exception\Exception
      */
-    public function selectWithGroupBy(string $namespace, array $filter = [])
+    public function selectWithGroupBy(string $namespace, array $filter = [],bool $isIdAuto = true)
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->selectWithGroupBy($namespace, $filter,true);
+            return $collection->selectWithGroupBy($namespace, $filter,true,$isIdAuto);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
