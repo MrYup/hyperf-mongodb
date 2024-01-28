@@ -134,8 +134,8 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      */
     public function executeQueryAll(string $namespace, array $filter = [], array $options = [],bool $isIdAuto = true)
     {
-        if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId) && $isIdAuto) {
-            $filter['_id'] = new ObjectId($filter['_id']);
+        if (isset($filter['_id'])){
+            $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
         }
         // 查询数据
         $result = [];
@@ -174,8 +174,8 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      */
     public function execQueryPagination(string $namespace, int $limit = 10, int $currentPage = 0, array $filter = [], array $options = [],bool $isIdAuto = true)
     {
-        if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId) && $isIdAuto) {
-            $filter['_id'] = new ObjectId($filter['_id']);
+        if (isset($filter['_id'])){
+            $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
         }
         // 查询数据
         $data = [];
@@ -303,8 +303,8 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     {
         try {
             $startTime = microtime(true);
-            if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId) && $isIdAuto) {
-                $filter['_id'] = new ObjectId($filter['_id']);
+            if (isset($filter['_id'])){
+                $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
             }
             $option = ['multi' => true, 'upsert' => false];
             $bulk = new BulkWrite;
@@ -348,8 +348,8 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     {
         try {
             $startTime = microtime(true);
-            if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId) && $isIdAuto) {
-                $filter['_id'] = new ObjectId($filter['_id']);
+            if (isset($filter['_id'])){
+                $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
             }
 
             $option = ['multi' => false, 'upsert' => false];
@@ -386,8 +386,8 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     {
         try {
             $startTime = microtime(true);
-            if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId) && $isIdAuto) {
-                $filter['_id'] = new ObjectId($filter['_id']);
+            if (isset($filter['_id'])){
+                $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
             }
             $option = ['limit' => $limit];
             $bulk = new BulkWrite;
@@ -403,6 +403,30 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             $this->pool->release($this);
             throw $e;
         }
+    }
+
+    /**
+     * 格式化_id
+     * @param mixed $_id
+     * @param bool $isIdAuto
+     * @return array
+     */
+    function formatFilters($_id ,bool $isIdAuto = true){
+        if ($_id && !($_id instanceof ObjectId) && $isIdAuto) {
+            if (is_array($_id)){
+                foreach ($_id as $op => $idFilterValue){
+                    if (is_array($idFilterValue)){
+                        $_id[$op] = formatFilters($idFilterValue,$isIdAuto);
+                    }else{
+                        $_id[$op] = new ObjectId($idFilterValue);
+                    }
+                }
+            }else{
+                $_id = new ObjectId($_id);
+            }
+        }
+
+        return $_id;
     }
 
     /**
