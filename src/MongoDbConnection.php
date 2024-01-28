@@ -411,7 +411,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      * @param bool $isIdAuto
      * @return array
      */
-    function formatFilters($_id ,bool $isIdAuto = true){
+    protected function formatFilters($_id ,bool $isIdAuto = true){
         if ($_id && !($_id instanceof ObjectId) && $isIdAuto) {
             if (is_array($_id)){
                 foreach ($_id as $op => $idFilterValue){
