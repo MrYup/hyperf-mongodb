@@ -281,6 +281,7 @@ abstract class MongodbModel
 
 
     /**
+     * 只更新指定字段
      * @param array $attributes
      * @return $this
      * @throws Exception\MongoDBException
@@ -293,11 +294,13 @@ abstract class MongodbModel
         }
         self::formatWrittenRow($attributes);
 
+        $this->mongo->updateColumn($this->getCollection(),$this->writeByFilter(),$attributes,static::$isIdAuto);
+
         foreach ($attributes as $field => $value){
             $this->$field = $value;
         }
 
-        return $this->save();
+        return $this;
     }
 
     /**
