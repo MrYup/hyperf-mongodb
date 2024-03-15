@@ -303,6 +303,8 @@ abstract class MongodbModel
         return $this;
     }
 
+
+
     /**
      * @return MongoEloquent
      */
@@ -330,6 +332,24 @@ abstract class MongodbModel
 
         return $this;
     }
+
+
+    /**
+     * 字段递增或递减，原子性
+     * @param $column
+     * @param int $step     -步差
+     * @param bool $up      -true:递增，false:递减
+     * @return $this
+     * @throws Exception\MongoDBException
+     * @throws MongoUpdateException
+     */
+    public function inc($column,int $step = 1,bool $up = true){
+        $step = $up?$step:0-$step;
+        $incrInfo =  $this->mongo->findandmodify($this->getCollection(),$this->writeByFilter(),['$inc'=>[$column=>$step]]);
+        $this->{$column} = $incrInfo->value->{$column};
+        return $this;
+    }
+    
 
     /**
      * @return bool
