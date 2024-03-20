@@ -126,7 +126,7 @@ class MongoEloquent
             $this->builder->whereNull($this->model->deletedAt());
         }
 
-        $table = $this->tableName();
+        $table = $this->model->getCollection();
         $filters = $this->builder->getFilters();
         $pipeline = [];
 
