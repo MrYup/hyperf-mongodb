@@ -44,17 +44,18 @@ class MongoDb
      * @param string $namespace
      * @param array $filter
      * @param array $options
+     * @param bool $isIdAuto
      * @return array
      * @throws MongoDBException
      */
-    public function fetchAll(string $namespace, array $filter = [], array $options = []): array
+    public function fetchAll(string $namespace, array $filter = [], array $options = [],bool $isIdAuto = true): array
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->executeQueryAll($namespace, $filter, $options);
+            return $collection->executeQueryAll($namespace, $filter, $options,$isIdAuto);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -66,10 +67,11 @@ class MongoDb
      * @param string $namespace
      * @param array $filter
      * @param array $options
+     * @param bool $isIdAuto
      * @return array
      * @throws MongoDBException
      */
-    public function findOne(string $namespace, array $filter = [], array $options = []): array
+    public function findOne(string $namespace, array $filter = [], array $options = [],bool $isIdAuto = true): array
     {
         try {
             /**
@@ -77,7 +79,7 @@ class MongoDb
              */
             $collection = $this->getConnection();
             $options['limit'] = 1;
-            $ret =  $collection->executeQueryAll($namespace, $filter, $options);
+            $ret =  $collection->executeQueryAll($namespace, $filter, $options,$isIdAuto);
             return $ret[0]??[];
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
@@ -92,17 +94,18 @@ class MongoDb
      * @param int $currentPage
      * @param array $filter
      * @param array $options
+     * @param bool $isIdAuto
      * @return array
      * @throws MongoDBException
      */
-    public function fetchPagination(string $namespace, int $limit, int $currentPage, array $filter = [], array $options = []): array
+    public function fetchPagination(string $namespace, int $limit, int $currentPage, array $filter = [], array $options = [],bool $isIdAuto = true): array
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->execQueryPagination($namespace, $limit, $currentPage, $filter, $options);
+            return $collection->execQueryPagination($namespace, $limit, $currentPage, $filter, $options,$isIdAuto);
         } catch (\Exception  $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -158,17 +161,18 @@ class MongoDb
      * @param $namespace
      * @param array $filter
      * @param array $newObj
+     * @param bool $isIdAuto
      * @return bool
      * @throws MongoDBException
      */
-    public function updateRow($namespace, array $filter = [], array $newObj = []): bool
+    public function updateRow($namespace, array $filter = [], array $newObj = [],bool $isIdAuto = true): bool
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->updateRow($namespace, $filter, $newObj);
+            return $collection->updateRow($namespace, $filter, $newObj,$isIdAuto);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -180,17 +184,18 @@ class MongoDb
      * @param $namespace
      * @param array $filter
      * @param array $newObj
+     * @param bool $isIdAuto
      * @return bool
      * @throws MongoDBException
      */
-    public function updateColumn($namespace, array $filter = [], array $newObj = []): bool
+    public function updateColumn($namespace, array $filter = [], array $newObj = [],bool $isIdAuto = true): bool
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->updateColumn($namespace, $filter, $newObj);
+            return $collection->updateColumn($namespace, $filter, $newObj,$isIdAuto);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -198,21 +203,21 @@ class MongoDb
 
     /**
      * 删除满足条件的数据，默认只删除匹配条件的全部行，若只删除第一行，limit设置为true
-     *
      * @param string $namespace
      * @param array $filter
+     * @param bool $isIdAuto
      * @param bool $limit
      * @return bool
      * @throws MongoDBException
      */
-    public function delete(string $namespace, array $filter = [], bool $limit = false): bool
+    public function delete(string $namespace, array $filter = [],bool $isIdAuto = true, bool $limit = false): bool
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->delete($namespace, $filter, $limit);
+            return $collection->delete($namespace, $filter,$isIdAuto, $limit);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -226,14 +231,14 @@ class MongoDb
      * @return bool
      * @throws MongoDBException
      */
-    public function count(string $namespace, array $filter = [])
+    public function count(string $namespace, array $filter = [],bool $isIdAuto = true)
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->count($namespace, $filter);
+            return $collection->count($namespace, $filter,$isIdAuto);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -260,13 +265,13 @@ class MongoDb
         }
     }
 
-    public function findandmodify(string $namespace,array $filters,array $update){
+    public function findandmodify(string $namespace,array $filters,array $update,bool $isIdAuto = true){
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->findandmodify($namespace, $filters,$update);
+            return $collection->findandmodify($namespace, $filters,$update,$isIdAuto);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -280,14 +285,14 @@ class MongoDb
      * @throws MongoDBException
      * @throws \MongoDB\Driver\Exception\Exception
      */
-    public function selectWithGroupBy(string $namespace, array $filter = [])
+    public function selectWithGroupBy(string $namespace, array $filter = [],bool $isIdAuto = true)
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->selectWithGroupBy($namespace, $filter,true);
+            return $collection->selectWithGroupBy($namespace, $filter,true,$isIdAuto);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }

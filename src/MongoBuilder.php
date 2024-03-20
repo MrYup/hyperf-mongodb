@@ -196,6 +196,7 @@ class MongoBuilder{
     }
 
     /**
+     * 设置filter，注意此方法将会覆盖之前已设定的filter
      * @param array $filters
      * @return $this
      */
@@ -204,7 +205,21 @@ class MongoBuilder{
         return $this;
     }
 
+    /**
+     * 添加一个filer
+     * @param array $filter
+     * @return $this
+     */
+    public function addFilters(array $filter){
+        $this->filters[] = $filter;
+        return $this;
+    }
+
     public function select(array $select){
+        //查询全部，则不需要指定字段
+        if (in_array('*',$select)){
+            return $this;
+        }
         if (!array_key_exists('projection',$this->options)){
             $this->options['projection'] = [];
         }

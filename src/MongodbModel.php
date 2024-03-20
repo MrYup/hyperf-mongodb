@@ -5,7 +5,6 @@ namespace Mryup\HyperfMongodb;
 use Carbon\Carbon;
 use Hyperf\Database\Model\ModelNotFoundException;
 use Hyperf\Utils\Traits\ForwardsCalls;
-use MongoDB\BSON\ObjectId;
 use Mryup\HyperfMongodb\Exception\MongoInsertException;
 use Mryup\HyperfMongodb\Exception\MongoUpdateException;
 use Hyperf\Di\Annotation\Inject;
@@ -39,16 +38,29 @@ abstract class MongodbModel
     protected $connection = 'default';
 
     /**
-     * 主键
+     * 自定义主键
      * @var string
      */
     protected $primaryKey = 'id';
 
     /**
-     * 主键自增
+     * 自定义主键自增
      * @var bool
      */
     protected $increase = true;
+
+
+    /**
+     * 数据库主键
+     * @var mixed
+     */
+    private $_id = null;
+
+    /**
+     * 数据库主键，是否是数据库自动生成
+     * @var bool
+     */
+    protected static $isIdAuto = true;
 
     /**
      * @Inject
@@ -61,7 +73,6 @@ abstract class MongodbModel
      */
     protected $builder;
 
-    private $_id = null;
 
     public function __construct()
     {
@@ -208,7 +219,7 @@ abstract class MongodbModel
         }
         self::formatWrittenRow($attributes);
 
-        $instance->mongo->updateRow($instance->getCollection(),$filters,$attributes);
+        $instance->mongo->updateRow($instance->getCollection(),$filters,$attributes,static::$isIdAuto);
         return true;
     }
 
@@ -228,9 +239,18 @@ abstract class MongodbModel
             self::updateAll($filters,$attributes);
         }else{
             //强制删除
-            $instance->mongo->delete($instance->getCollection(),$filters);
+            $instance->mongo->delete($instance->getCollection(),$filters,static::$isIdAuto);
         }
         return true;
+    }
+
+
+    protected function writeByFilter(){
+        if (!$this->_id){
+            throw new MongoUpdateException("Instance missing writeId");
+        }
+
+        return ['_id' => $this->_id];
     }
 
 
@@ -254,13 +274,14 @@ abstract class MongodbModel
             }
         }else{
             //强制删除
-            $this->mongo->delete($this->getCollection(),['_id'=>$this->_id],true);
+            $this->mongo->delete($this->getCollection(),$this->writeByFilter(),static::$isIdAuto,true);
         }
         return true;
     }
 
 
     /**
+     * 只更新指定字段
      * @param array $attributes
      * @return $this
      * @throws Exception\MongoDBException
@@ -273,14 +294,20 @@ abstract class MongodbModel
         }
         self::formatWrittenRow($attributes);
 
+        $this->mongo->updateColumn($this->getCollection(),$this->writeByFilter(),$attributes,static::$isIdAuto);
+
         foreach ($attributes as $field => $value){
             $this->$field = $value;
         }
 
-        return $this->save();
+        return $this;
     }
 
 
+
+    /**
+     * @return MongoEloquent
+     */
     public static function query(){
         return make(MongoEloquent::class,['model'=>new static()]);
     }
@@ -293,9 +320,6 @@ abstract class MongodbModel
      * @throws MongoUpdateException
      */
     public function save(){
-        if (!$this->_id){
-            throw new MongoUpdateException("Instance missing _id");
-        }
         if ($this->timestamps){
             $ut = self::UPDATED_AT;
             $this->$ut = Carbon::now()->toDateTimeString();
@@ -304,9 +328,34 @@ abstract class MongodbModel
         $update = $this->toArray();
         self::formatWrittenRow($update);
 
-        $this->mongo->updateColumn($this->getCollection(),['_id'=>new ObjectId($this->_id)],$update);
+        $this->mongo->updateColumn($this->getCollection(),$this->writeByFilter(),$update,static::$isIdAuto);
 
         return $this;
+    }
+
+
+    /**
+     * 字段递增或递减，原子性
+     * @param $column
+     * @param int $step     -步差
+     * @param bool $up      -true:递增，false:递减
+     * @return $this
+     * @throws Exception\MongoDBException
+     * @throws MongoUpdateException
+     */
+    public function inc($column,int $step = 1,bool $up = true){
+        $step = $up?$step:0-$step;
+        $incrInfo =  $this->mongo->findandmodify($this->getCollection(),$this->writeByFilter(),['$inc'=>[$column=>$step]]);
+        $this->{$column} = $incrInfo->value->{$column};
+        return $this;
+    }
+    
+
+    /**
+     * @return bool
+     */
+    public function isAutoId(){
+        return static::$isIdAuto;
     }
 
 

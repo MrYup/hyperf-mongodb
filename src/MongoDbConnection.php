@@ -128,13 +128,14 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      * @param string $namespace
      * @param array $filter
      * @param array $options
+     * @param bool $isIdAuto
      * @return array
      * @throws MongoDBException
      */
-    public function executeQueryAll(string $namespace, array $filter = [], array $options = [])
+    public function executeQueryAll(string $namespace, array $filter = [], array $options = [],bool $isIdAuto = true)
     {
-        if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
-            $filter['_id'] = new ObjectId($filter['_id']);
+        if (isset($filter['_id'])){
+            $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
         }
         // 查询数据
         $result = [];
@@ -167,13 +168,14 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      * @param int $currentPage
      * @param array $filter
      * @param array $options
+     * @param bool $isIdAuto
      * @return array
      * @throws MongoDBException
      */
-    public function execQueryPagination(string $namespace, int $limit = 10, int $currentPage = 0, array $filter = [], array $options = [])
+    public function execQueryPagination(string $namespace, int $limit = 10, int $currentPage = 0, array $filter = [], array $options = [],bool $isIdAuto = true)
     {
-        if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
-            $filter['_id'] = new ObjectId($filter['_id']);
+        if (isset($filter['_id'])){
+            $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
         }
         // 查询数据
         $data = [];
@@ -202,7 +204,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
                 $data[] = $document;
             }
 
-            $result['totalCount'] = $this->count($namespace, $filter);
+            $result['totalCount'] = $this->count($namespace, $filter,$isIdAuto);
             $result['currentPage'] = $currentPage;
             $result['perPage'] = $limit;
             $result['list'] = $data;
@@ -290,19 +292,19 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      *   ['$set' => ['y' => 3]],
      *   ['multi' => false, 'upsert' => false]
      * );
-     *
      * @param string $namespace
      * @param array $filter
      * @param array $newObj
+     * @param bool $isIdAuto
      * @return bool
-     * @throws MongoDBException
+     * @throws \Throwable
      */
-    public function updateRow(string $namespace, array $filter = [], array $newObj = []): bool
+    public function updateRow(string $namespace, array $filter = [], array $newObj = [],bool $isIdAuto = true): bool
     {
         try {
             $startTime = microtime(true);
-            if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
-                $filter['_id'] = new ObjectId($filter['_id']);
+            if (isset($filter['_id'])){
+                $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
             }
             $option = ['multi' => true, 'upsert' => false];
             $bulk = new BulkWrite;
@@ -338,15 +340,16 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      * @param string $namespace
      * @param array $filter
      * @param array $newObj
+     * @param bool $isIdAuto
      * @return bool
      * @throws MongoDBException
      */
-    public function updateColumn(string $namespace, array $filter = [], array $newObj = []): bool
+    public function updateColumn(string $namespace, array $filter = [], array $newObj = [],bool $isIdAuto = true): bool
     {
         try {
             $startTime = microtime(true);
-            if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
-                $filter['_id'] = new ObjectId($filter['_id']);
+            if (isset($filter['_id'])){
+                $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
             }
 
             $option = ['multi' => false, 'upsert' => false];
@@ -372,19 +375,19 @@ class MongoDbConnection extends Connection implements ConnectionInterface
 
     /**
      * 删除数据
-     *
      * @param string $namespace
      * @param array $filter
+     * @param bool $isIdAuto
      * @param bool $limit
      * @return bool
-     * @throws MongoDBException
+     * @throws \Throwable
      */
-    public function delete(string $namespace, array $filter = [], bool $limit = false): bool
+    public function delete(string $namespace, array $filter = [],bool $isIdAuto = true, bool $limit = false): bool
     {
         try {
             $startTime = microtime(true);
-            if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
-                $filter['_id'] = new ObjectId($filter['_id']);
+            if (isset($filter['_id'])){
+                $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
             }
             $option = ['limit' => $limit];
             $bulk = new BulkWrite;
@@ -403,6 +406,30 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     }
 
     /**
+     * 格式化_id
+     * @param mixed $_id
+     * @param bool $isIdAuto
+     * @return array
+     */
+    protected function formatFilters($_id ,bool $isIdAuto = true){
+        if ($_id && !($_id instanceof ObjectId) && $isIdAuto) {
+            if (is_array($_id)){
+                foreach ($_id as $op => $idFilterValue){
+                    if (is_array($idFilterValue)){
+                        $_id[$op] = $this->formatFilters($idFilterValue,$isIdAuto);
+                    }else{
+                        $_id[$op] = new ObjectId($idFilterValue);
+                    }
+                }
+            }else{
+                $_id = new ObjectId($_id);
+            }
+        }
+
+        return $_id;
+    }
+
+    /**
      * 获取collection 中满足条件的条数
      *
      * @param string $namespace
@@ -410,10 +437,13 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      * @return bool
      * @throws MongoDBException
      */
-    public function count(string $namespace, array $filter = [])
+    public function count(string $namespace, array $filter = [],bool $isIdAuto = true)
     {
         try {
             $startTime = microtime(true);
+            if (isset($filter['_id'])){
+                $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
+            }
             $commandParam = [
                 'count' => $namespace
             ];
@@ -443,9 +473,12 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      * @throws Exception
      * @throws \Throwable
      */
-    public function selectWithGroupBy(string $namespace, array $filter = [], bool $fetchAll = false)
+    public function selectWithGroupBy(string $namespace, array $filter = [], bool $fetchAll = false,bool $isIdAuto = true)
     {
         try {
+            if (isset($filter['_id'])){
+                $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
+            }
             $startTime = microtime(true);
             $command = new Command([
                 'aggregate' => $namespace,
@@ -465,12 +498,15 @@ class MongoDbConnection extends Connection implements ConnectionInterface
         }
     }
 
-    public function findandmodify(string $namespace,array $filters,array $update){
+    public function findandmodify(string $namespace,array $filter,array $update,bool $isIdAuto = true){
         try {
+            if (isset($filter['_id'])){
+                $filter['_id'] = $this->formatFilters($filter['_id'],$isIdAuto);
+            }
             $command = new Command([
                 'findandmodify' => $namespace,
                 'update' => $update,
-                'query' => $filters,
+                'query' => $filter,
                 'new' => true,
                 'upsert' => true
             ]);
@@ -478,7 +514,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             $result =  $this->connection->executeCommand($this->config['db'], $command)->toArray();
             $endTime = microtime(true);
             //触发查询事件
-            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'UPDATE',$filters,[],$update,round($endTime - $startTime,4)));
+            $this->eventDispatcher->dispatch(new MongoWriteEvent($this->config['db'],$namespace,'UPDATE',$filter,[],$update,round($endTime - $startTime,4)));
             $this->pool->release($this);
             return $result[0]??null;
         } catch (\Throwable $e) {
