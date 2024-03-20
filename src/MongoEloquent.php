@@ -119,6 +119,49 @@ class MongoEloquent
         return $rows;
     }
 
+    public  function count(){
+
+        //过滤软删除
+        if ($this->model->isSoftDeleted()){
+            $this->builder->whereNull($this->model->deletedAt());
+        }
+
+        $table = $this->tableName();
+        $filters = $this->builder->getFilters();
+        $pipeline = [];
+
+        $sum = 1;
+
+        //只有条件不为空，才允许使用match
+        if (!empty($filters)){
+            $pipeline[] = [
+                //match 放在group前，与mysql的where用法一致
+                '$match' => $filters,
+            ];
+        }
+        $pipeline[] = [
+            '$group' => [
+                //mysql group by
+                '_id' => null,
+                'total' => [
+                    '$sum' => $sum,
+                ],
+            ],
+        ];
+
+        $pipeline[] = [
+            '$project' => [
+                '_id' => 0
+            ]
+        ];
+
+        $result = $this->model->getMongo()->selectWithGroupBy($table,$pipeline,$this->model->isAutoId());
+        if (!isset($result[0])){
+            return 0;
+        }
+        return $result[0]->total;
+    }
+
     /**
      * 查询并返回字段字段，一维数组
      * @param $column
