@@ -113,8 +113,15 @@ class MongoBuilder{
             throw new MongoBuilderException("Unknown type of values");
         }
 
-        $op = $not?'$nin':'$in';
-        $this->filters[$column] = [$op=>$_value];
+        $length = count($_value);
+        if($length === 1){
+            $op = $not?'$ne':'$eq';
+            $this->filters[$column] = [$op=>$_value[0]];
+        }else{
+            $op = $not?'$nin':'$in';
+            $this->filters[$column] = [$op=>$_value];
+        }
+
         return $this;
 
     }
